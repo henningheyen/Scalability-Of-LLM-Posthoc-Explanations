@@ -3,8 +3,8 @@ import numpy as np
 def get_results(classifier, sentences, candidate_labels):
   return classifier(sentences, candidate_labels)
 
-def predict(sentences, candidate_labels=["negative sentiment", "positive sentiment"]):
-  results = get_results(sentences, candidate_labels)
+def predict(classifer, sentences, candidate_labels=["negative sentiment", "positive sentiment"]):
+  results = get_results(classifer, sentences, candidate_labels)
 
   # Get the labels from the results
   labels = [pred['labels'] for pred in results]
