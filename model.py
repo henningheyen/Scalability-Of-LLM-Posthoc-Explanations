@@ -1,7 +1,8 @@
-from transformers import pipeline
+from transformers import pipeline, GPT2Tokenizer, GPT2LMHeadModel
+import torch
 import numpy as np
 
-class SentimentClassifier:
+class ZeroShotLearner:
     def __init__(self, model_name, candidate_labels):
         self.classifier = pipeline("zero-shot-classification", model=model_name, use_fast=False)
         self.candidate_labels = candidate_labels
@@ -33,4 +34,88 @@ class SentimentClassifier:
         mapped_labels = [1 if label == self.candidate_labels[1] else 0 for label in predicted_labels]
 
         return mapped_labels
+    
+class FewShotLearner:
+    def __init__(self, model_name):
+        self.model = GPT2LMHeadModel.from_pretrained(model_name)
+        self.tokenizer = GPT2Tokenizer.from_pretrained(model_name)
+
+    def generate_text(self, prompt, n_generated_tokens=2):
+    
+        # Tokenize the prompt
+        input_ids = self.encode(prompt)
+
+        # Perform a single inference step
+        output = self.model.generate(input_ids, max_length=input_ids.size(1) + n_generated_tokens, num_return_sequences=1)
+
+        # Extract and decode the generated token
+        generated_text = self.tokenizer.decode(output[0], skip_special_tokens=True)
+
+        # Print the generated token
+        print("Generated Text:", generated_text)
+        print("Last word: ", generated_text.split()[-1])
+
+    def predict_token(self, prompt, top_k=5, verbose=True):
+
+        # Tokenize the prompt
+        input_ids = self.encode(prompt)
+
+        # Perform a single inference step
+        output = self.model.forward(input_ids)
+
+        probs = torch.nn.functional.softmax(output.logits[0,-1,:], dim=0)
+
+        # Get the top 5 tokens and their probabilities
+        top_probs, top_indices = torch.topk(probs, k=top_k)
+
+        # Convert the indices to tokens
+        tokens = self.tokenizer.convert_ids_to_tokens(top_indices.tolist())
+
+        if verbose:
+            # Print the top 5 tokens and their probabilities
+            for i in range(top_k):
+                print(tokens[i], top_probs[i].item())
+
+        return probs
+    
+    def predict_for_lime(self, prompts):
+
+        results = []
+
+        for prompt in prompts:
+
+            probs = self.predict_token(prompt, verbose=False)
+
+            token_probs = probs[self.tokenizer.convert_tokens_to_ids(['Ġnegative', 'Ġpositive'])] # 3967: id for Ġpositive, 4633: id for Ġnegative
+            
+            norm_probs = token_probs / torch.sum(token_probs) # normalizing
+
+            results.append([norm_probs[0].item(), norm_probs[1].item()])
+
+        return np.array(results)
+    
+    def get_predictions(self, prompts):
+        # Outputs 0 for negative and 1 for positive prediction
+
+        predicted_labels = []
+        
+        for prompt in prompts:
+            probs = self.predict_token(prompt, verbose=False)
+
+            if torch.argmax(probs) == 4633: # Ġnegative
+                predicted_labels.append(0)
+            elif torch.argmax(probs) == 3967: # Ġpositive
+                predicted_labels.append(1)
+            else:
+                # Neither Ġpositive nor Ġnegative was predicted
+                predicted_token = self.tokenizer.convert_ids_to_tokens(int(torch.argmax(probs)))
+                raise ValueError(f'Predicted token is {predicted_token} instead of Ġpositive or Ġnegative')
+            
+        return predicted_labels
+
+
+    
+    def encode(self, prompt):
+        return self.tokenizer.encode(prompt, return_tensors='pt')
+
     
