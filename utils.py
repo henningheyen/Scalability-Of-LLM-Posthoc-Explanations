@@ -1,5 +1,7 @@
 import numpy as np
 import random
+from datasets import load_dataset
+
 
 def make_prompt(dataset, n_shots, test_review):
 
@@ -25,19 +27,29 @@ def make_random_prompt(dataset, n_shots, test_review, seed=42):
     train_labels = dataset['train']['label']
 
     # Randomly sample 20 sentences
-    #random.seed(seed)  # Set a seed for reproducibility
-    #sampled_indices = random.sample(range(len(train_sentences)), k=n_shots)
+    random.seed(seed)  # Set a seed for reproducibility
+    sampled_indices = random.sample(range(len(train_sentences)), k=n_shots)
 
     # Separate positive and negative samples
     positive_indices = [i for i, label in enumerate(train_labels) if label == 1]
     negative_indices = [i for i, label in enumerate(train_labels) if label == 0]
 
     # Randomly sample half of the shots from each class
-    random.seed(seed)  # Set a seed for reproducibility
+    #random.seed(seed)  # Set a seed for reproducibility
     half_n_shots = n_shots // 2
-    sampled_indices = random.sample(positive_indices, k=half_n_shots) + random.sample(negative_indices, k=half_n_shots)
 
+    # making sure that positive and negative reviews alternate
+    #negative_indices_sample = random.sample(negative_indices, k=half_n_shots)
+    #positive_indices_sample = random.sample(positive_indices, k=half_n_shots)
+    
+    #sampled_indices = [elem for pair in zip(negative_indices_sample, positive_indices_sample) for elem in pair]
+    #sampled_indices = sampled_indices + negative_indices_sample[len(positive_indices_sample):] + positive_indices_sample[len(negative_indices_sample):]
 
+    sampled_indices = random.sample(negative_indices, k=half_n_shots) + random.sample(positive_indices, k=half_n_shots)
+    
+    # Shuffeling the order of positive and negative shots
+    random.shuffle(sampled_indices)
+    
     # Retrieve the sampled sentences and labels
     sampled_sentences = [train_sentences[i] for i in sampled_indices]
     sampled_labels = [train_labels[i] for i in sampled_indices]
@@ -118,3 +130,33 @@ def get_test_set(dataset, test_size, n_shots, seed=42):
   prompts = [make_random_prompt(dataset, n_shots, test_review, seed) for test_review in sampled_test_reviews]
 
   return {'prompts': prompts, 'labels': sampled_labels}
+
+def make_test_set(size, dataset_name='MNLI', seed=42):
+
+  # Setting hypothesis and premise identifier
+  if dataset_name == 'MNLI':
+      dataset = load_dataset('SetFit/mnli')
+      premise, hypothesis = 'text1', 'text2'
+  elif dataset_name == 'SNLI':
+      dataset = load_dataset('snli')
+      premise, hypothesis = 'premise', 'hypothesis'
+  else:
+      raise ValueError('dataset_name must be MNLI or SNLI')
+
+  # Relabeling accoring to deberta model
+  new_labels = [2 if label == 1 else 1 if label == 0 else 0 for label in dataset['validation']['label']]
+
+  # Randomly sample the desired number of indices
+  random.seed(seed)
+  random_indices = random.sample(list(range(len(dataset['test']))), size)
+
+  test_set = [(dataset['validation'][i][premise], dataset['validation'][i][hypothesis]) for i in random_indices]
+  test_labels = [new_labels[i] for i in random_indices]  
+  test_labels_text = ['contradiction' if test_labels[i]==0 else 'entailment' if test_labels[i]==1 else 'neutral' for i in range(len(test_labels))]
+
+  return {'sentence_pairs': test_set, 'test_labels': test_labels, 'test_labels_text': test_labels_text}
+
+
+#deberta: ['contradiction', 'entailment', 'neutral']
+#mnli: ['entailment', 'neutral', 'contradiction']
+#snli: ['entailment', 'neutral', 'contradiction']

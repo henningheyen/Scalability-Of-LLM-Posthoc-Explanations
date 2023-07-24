@@ -1,4 +1,4 @@
-from transformers import pipeline, GPT2Tokenizer, GPT2LMHeadModel
+from transformers import pipeline, GPT2Tokenizer, GPT2LMHeadModel, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import numpy as np
 
@@ -34,6 +34,24 @@ class ZeroShotLearner:
         mapped_labels = [1 if label == self.candidate_labels[1] else 0 for label in predicted_labels]
 
         return mapped_labels
+
+class ZeroShotNLI: 
+    def __init__(self, model_name):
+        self.classifier = AutoModelForSequenceClassification.from_pretrained(f'cross-encoder/{model_name}')
+        self.tokenizer = AutoTokenizer.from_pretrained(f'cross-encoder/{model_name}', use_fast= False)
+
+    def predict_for_lime(self, sentence_pairs):
+
+        features = self.tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors="pt")
+
+        self.classifier.eval()
+        with torch.no_grad():
+            scores = self.classifier(**features).logits # 0: 'contradiction', 1: 'entailment', 0: 'neutral'
+            return torch.nn.functional.softmax(scores, dim=-1).detach().numpy()
+
+            
+
+
     
 class FewShotLearner:
     def __init__(self, model_name):

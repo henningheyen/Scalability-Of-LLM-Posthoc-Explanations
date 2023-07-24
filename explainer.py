@@ -1,29 +1,38 @@
 from lime.lime_text import LimeTextExplainer
 
-class_names = ['negative', 'positive']
-explainer = LimeTextExplainer(class_names=class_names)
-
-def show_lime(sentences, predict, num_samples=100, num_features=10):
+class Explainer:
   
-  for sentence in sentences:
-    explanation = compute_explanation(sentence, predict, num_samples=num_samples, num_features=num_features)
-    print("Sentence: ", sentence)
-    print("LIME Explanation:")
-    explanation.show_in_notebook(text=True)
-    print('-----------------------')
+  def __init__(self, class_names):
+    self.class_names = class_names
+    self.explainer = LimeTextExplainer(class_names=class_names)
 
-def compute_explanation(sentence, predict, num_samples=100, num_features=10):
-  return explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features)
+  def compute_explanations(self, sentences, predict, num_samples=100, num_features=10, task=None):
+    explanations = []
 
-def comprehensiveness(sentence):
-  
+    # NLI sentences are pairs of premises and hypotheses
+    if task == 'NLI':
+      sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
+
+    for sentence in sentences: 
+      explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features)
+      explanations.append(explanation)
+
+    return explanations
+
+  def show_lime(self, explanations):
+
+    for explanation in explanations:
+      explanation.show_in_notebook(text=True)
+      print('-----------------------')
+
+  def comprehensiveness(self, sentence):
   return
 
-def aggregate_comprehensiveness(sentence):
-  return
+  def aggregate_comprehensiveness(self, sentence):
+    return
 
-def sufficiency(sentence):
-  return
+  def sufficiency(self, sentence):
+    return
 
-def aggregate_sufficiency(sentence):
-  return
+  def aggregate_sufficiency(self, sentence):
+    return
