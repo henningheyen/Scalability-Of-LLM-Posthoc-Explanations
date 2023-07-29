@@ -1,39 +1,50 @@
 from transformers import pipeline, GPT2Tokenizer, GPT2LMHeadModel, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import numpy as np
+from torch.utils.data import DataLoader
+
+
 
 class ZeroShotLearner:
-    def __init__(self, model_name, candidate_labels):
+    def __init__(self, model_name, candidate_labels=None):
         self.classifier = pipeline("zero-shot-classification", model=model_name, use_fast=False)
         self.candidate_labels = candidate_labels
+        self.candidate_labels_list = None
 
+    def set_candidate_labels_list(self, candidate_labels_list):
+        self.candidate_labels_list = candidate_labels_list
+        
     def predict(self, sentences):
         results = self.get_results(sentences)
 
-        # Get the labels from the results
-        labels = [pred['labels'] for pred in results]
-
-        # Get the scores from the results
-        scores = [pred['scores'] for pred in results]
-
         # Create NumPy array
-        arr = np.zeros((len(sentences), 2))
+        if self.candidate_labels is None:
+            arr = np.zeros((len(sentences), len(self.candidate_labels_list[0])))
+        else:
+            arr = np.zeros((len(sentences), len(self.candidate_labels)))
 
         # Assign the scores to the corresponding positions in the array
-        for i, label in enumerate(labels):
-            arr[i, 0] = scores[i][label.index(self.candidate_labels[0])]
-            arr[i, 1] = scores[i][label.index(self.candidate_labels[1])]
+        for i, result in enumerate(results):
+            current_labels = self.candidate_labels_list[i] if self.candidate_labels is None else self.candidate_labels
+            for j, label in enumerate(current_labels):
+                arr[i, j] = result['scores'][result['labels'].index(label)]
         
         return arr
 
     def get_results(self, sentences):
-        return self.classifier(sentences, self.candidate_labels)
+        candidate_labels = self.candidate_labels_list if self.candidate_labels_list is not None else [self.candidate_labels]*len(sentences)
+        return [self.classifier(sentence, labels) for sentence, labels in zip(sentences, candidate_labels)]
+
 
     def get_predictions(self, results):
         predicted_labels = [result['labels'][0] for result in results]
-        mapped_labels = [1 if label == self.candidate_labels[1] else 0 for label in predicted_labels]
-
+        if self.candidate_labels_list is None:
+            mapped_labels = [1 if label == self.candidate_labels[1] else 0 for label in predicted_labels]
+        else:
+            mapped_labels = [self.candidate_labels_list[i].index(predicted_labels[i]) for i in range(len(predicted_labels))]
+            
         return mapped_labels
+
 
 class ZeroShotNLI: 
     def __init__(self, model_name):
@@ -48,6 +59,11 @@ class ZeroShotNLI:
         with torch.no_grad():
             scores = self.classifier(**features).logits # 0: 'contradiction', 1: 'entailment', 0: 'neutral'
             return torch.nn.functional.softmax(scores, dim=-1).detach().numpy()
+
+    def get_predictions(self, sentence_pairs):
+
+        probs = self.predict_for_lime(sentence_pairs)
+        return [np.argmax(prob) for prob in probs]
 
             
 

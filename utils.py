@@ -148,7 +148,7 @@ def make_test_set(size, dataset_name='MNLI', seed=42):
 
   # Randomly sample the desired number of indices
   random.seed(seed)
-  random_indices = random.sample(list(range(len(dataset['test']))), size)
+  random_indices = random.sample(list(range(len(dataset['validation']))), size)
 
   test_set = [(dataset['validation'][i][premise], dataset['validation'][i][hypothesis]) for i in random_indices]
   test_labels = [new_labels[i] for i in random_indices]  
