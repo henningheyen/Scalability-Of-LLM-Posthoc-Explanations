@@ -21,7 +21,7 @@ class Explainer:
       top_labels=3
 
     # making pertubations deterministic
-    np.random.seed(random_state)
+    np.random.seed(self.random_state)
 
     for i, sentence in enumerate(sentences):
 
