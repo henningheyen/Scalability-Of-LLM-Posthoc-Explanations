@@ -1,6 +1,9 @@
 from lime.lime_text import LimeTextExplainer
 import numpy as np
 import re
+import string
+
+
 
 class Explainer:
   
@@ -8,7 +11,6 @@ class Explainer:
     self.class_names = class_names
     self.random_state = random_state
     self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
-
 
   def compute_explanations(self, sentences, model, num_samples=100, num_features=None, task=None, class_names_list=None):
     explanations = []
@@ -18,6 +20,9 @@ class Explainer:
       sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
       top_labels=3
 
+    # making pertubations deterministic
+    np.random.seed(random_state)
+
     for i, sentence in enumerate(sentences):
 
       # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
@@ -25,7 +30,7 @@ class Explainer:
         self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
         top_labels= len(class_names_list[i])
       else:
-         class_names_list = [self.class_names]*len(sentences)
+         class_names_list = [self.class_names]
          top_labels = len(self.class_names)
 
       # if no specific number is given then set num_feature to the number of tokens
@@ -36,7 +41,7 @@ class Explainer:
 
       explanation = self.explainer.explain_instance(
          sentence, 
-         lambda x: model.predict(x, [class_names_list[i]]), 
+         lambda x: model.predict(x, [class_names_list[i]]*num_features_temp), 
          num_samples=num_samples, 
          num_features=num_features_temp, 
          top_labels=top_labels
@@ -171,5 +176,118 @@ class Explainer:
               new_sentence.append(new_token)
       
       return new_sentence
+  
+  def get_explanation_list(self, explanations, top_percent):
+    
+    explanation_list = []
+    
+    for explanation in explanations:
+        expl_list = [explanation.as_list(label= explanation.top_labels[0])[i][0].lower() for i in range(len(explanation.as_list()))]
+        threshold = int(np.ceil(len(expl_list) * top_percent))
+        explanation_list.append(expl_list[:threshold])
+    
+    return explanation_list
+  
+  def format_explanation_true_list(self, explanation_true_list):
+
+    # spliting words with apostrophe ('wasn't' -> 'wasn', 't')
+    explanation_true_list = [[word for item in explanation for word in item.replace("'", " ").split()] for explanation in explanation_true_list]
+
+    # Now split the words by spaces and remove punctuation ('kissing?' -> 'kissing')
+    translator = str.maketrans('', '', string.punctuation)
+        
+    # Use a list comprehension to remove punctuation from each word in each list.
+    explanation_true_list = [[word.translate(translator) for word in word_list] for word_list in explanation_true_list]
+
+    return explanation_true_list
+  
+  def compute_token_f1(self, explanation_true, explanation_pred):
+    true_set = set(explanation_true)
+    pred_set = set(explanation_pred)
+
+    # Calculate precision and recall
+    precision = len(true_set & pred_set) / len(pred_set) if pred_set else 0
+    recall = len(true_set & pred_set) / len(true_set) if true_set else 0
+
+    # Calculate F1 score
+    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+
+    return f1
 
 
+
+
+
+
+  #Old version
+  # def compute_explanations2(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
+
+  #   explanations = []
+
+  #   # NLI sentences are pairs of premises and hypotheses
+  #   if task == 'NLI':
+  #     sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
+  #     top_labels=3
+
+  #   for i, sentence in enumerate(sentences):
+
+  #     # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
+  #     if class_names_list is not None:
+  #       self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
+  #       top_labels= len(class_names_list[i])
+
+  #     # if no specific number is given then set num_feature to the number of tokens
+  #     if num_features is None:
+  #       num_features_temp = len(sentence.split())
+  #     else:
+  #       num_features_temp = num_features
+
+  #     explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
+  #     explanations.append(explanation)
+
+  #   return explanations
+
+  # class Explainer2:
+
+  # def __init__(self, class_names=None, random_state=42):
+  #   self.class_names = class_names
+  #   self.random_state = random_state
+  #   self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
+
+  # def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
+
+  #   explanations = []
+
+  #   # NLI sentences are pairs of premises and hypotheses
+  #   if task == 'NLI':
+  #     sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
+  #     top_labels=3
+
+  #   for i, sentence in enumerate(sentences):
+
+  #     # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
+  #     if class_names_list is not None:
+  #       self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
+  #       top_labels= len(class_names_list[i])
+
+  #     # if no specific number is given then set num_feature to the number of tokens
+  #     if num_features is None:
+  #       num_features_temp = len(sentence.split())
+  #     else:
+  #       num_features_temp = num_features
+
+  #     explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
+  #     explanations.append(explanation)
+
+  #   return explanations
+
+  # def show_lime(self, explanations, show_all_labels=False):
+    
+  #   for explanation in explanations:
+  #     if show_all_labels:
+  #       label = None
+  #     else:
+  #       label = [explanation.top_labels[0]]
+
+  #     explanation.show_in_notebook(text=True, labels=label)
+  #     print('-'*100)
