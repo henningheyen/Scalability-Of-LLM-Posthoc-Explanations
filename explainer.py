@@ -9,8 +9,8 @@ class Explainer:
     self.random_state = random_state
     self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
 
-  def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
 
+  def compute_explanations(self, sentences, model, num_samples=100, num_features=None, task=None, class_names_list=None):
     explanations = []
 
     # NLI sentences are pairs of premises and hypotheses
@@ -24,6 +24,9 @@ class Explainer:
       if class_names_list is not None:
         self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
         top_labels= len(class_names_list[i])
+      else:
+         class_names_list = [self.class_names]*len(sentences)
+         top_labels = len(self.class_names)
 
       # if no specific number is given then set num_feature to the number of tokens
       if num_features is None:
@@ -31,7 +34,13 @@ class Explainer:
       else:
         num_features_temp = num_features
 
-      explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
+      explanation = self.explainer.explain_instance(
+         sentence, 
+         lambda x: model.predict(x, [class_names_list[i]]), 
+         num_samples=num_samples, 
+         num_features=num_features_temp, 
+         top_labels=top_labels
+         )
       explanations.append(explanation)
 
     return explanations

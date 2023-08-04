@@ -3,45 +3,47 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 
-
-
 class ZeroShotLearner:
     def __init__(self, model_name, candidate_labels=None):
         self.classifier = pipeline("zero-shot-classification", model=model_name, use_fast=False)
         self.candidate_labels = candidate_labels
-        self.candidate_labels_list = None
 
-    def set_candidate_labels_list(self, candidate_labels_list):
-        self.candidate_labels_list = candidate_labels_list
-        
-    def predict(self, sentences):
-        results = self.get_results(sentences)
+    
+    def predict(self, sentences, candidate_labels_list=None):
 
-        # Create NumPy array
-        if self.candidate_labels is None:
-            arr = np.zeros((len(sentences), len(self.candidate_labels_list[0])))
-        else:
-            arr = np.zeros((len(sentences), len(self.candidate_labels)))
+        if self.candidate_labels is not None:
+            candidate_labels_list = [self.candidate_labels]*len(sentences)
+        elif candidate_labels_list is None:
+            raise ValueError('Provide candidate_labels_list in the predict method or initialise with candidate_labels')
+
+        results = self.get_results(sentences, candidate_labels_list)
+
+        arr = np.zeros((len(sentences), len(candidate_labels_list[0])))
 
         # Assign the scores to the corresponding positions in the array
         for i, result in enumerate(results):
-            current_labels = self.candidate_labels_list[i] if self.candidate_labels is None else self.candidate_labels
+            current_labels = candidate_labels_list[i]
             for j, label in enumerate(current_labels):
                 arr[i, j] = result['scores'][result['labels'].index(label)]
         
         return arr
+    
+    def get_results(self, sentences, candidate_labels_list=None):
+        
+        if self.candidate_labels is not None:
+            candidate_labels_list = [self.candidate_labels]*len(sentences)
+        elif candidate_labels_list is None:
+            raise ValueError('Provide candidate_labels_list in the predict method or initialise with candidate_labels')
 
-    def get_results(self, sentences):
-        candidate_labels = self.candidate_labels_list if self.candidate_labels_list is not None else [self.candidate_labels]*len(sentences)
-        return [self.classifier(sentence, labels) for sentence, labels in zip(sentences, candidate_labels)]
+        return [self.classifier(sentence, labels) for sentence, labels in zip(sentences, candidate_labels_list)]
 
 
-    def get_predictions(self, results):
+    def get_predictions(self, results, candidate_labels_list=None):
         predicted_labels = [result['labels'][0] for result in results]
-        if self.candidate_labels_list is None:
+        if candidate_labels_list is None:
             mapped_labels = [1 if label == self.candidate_labels[1] else 0 for label in predicted_labels]
         else:
-            mapped_labels = [self.candidate_labels_list[i].index(predicted_labels[i]) for i in range(len(predicted_labels))]
+            mapped_labels = [candidate_labels_list[i].index(predicted_labels[i]) for i in range(len(predicted_labels))]
             
         return mapped_labels
 
@@ -67,8 +69,6 @@ class ZeroShotNLI:
 
             
 
-
-    
 class FewShotLearner:
     def __init__(self, model_name):
         self.model = GPT2LMHeadModel.from_pretrained(model_name)
