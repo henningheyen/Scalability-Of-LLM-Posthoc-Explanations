@@ -237,10 +237,11 @@ class Explainer:
       
       return similarity
 
-  a = ['hello', 'world', 'I', 'am', 'bored']
-  b = ['hello', 'you', 'I', 'am', 'bored', 'can']
 
-  print(cosine_similarity(a, b))
+  #a = ['hello', 'world', 'I', 'am', 'bored']
+  #b = ['hello', 'you', 'I', 'am', 'bored', 'can']
+
+  #print(cosine_similarity(a, b))
 
 
 
