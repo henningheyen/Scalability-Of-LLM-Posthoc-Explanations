@@ -2,15 +2,17 @@ from lime.lime_text import LimeTextExplainer
 import numpy as np
 import re
 import string
+from math import sqrt
 
 
 
 class Explainer:
   
-  def __init__(self, class_names=None, random_state=42):
+  def __init__(self, class_names=None, random_state=42, kernel_width=25):
     self.class_names = class_names
     self.random_state = random_state
-    self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
+    self.kernel_width = kernel_width
+    self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state, kernel_width=kernel_width)
 
   def compute_explanations(self, sentences, model, num_samples=100, num_features=None, task=None, class_names_list=None):
     explanations = []
@@ -213,6 +215,33 @@ class Explainer:
     f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
     return f1
+
+
+  def cosine_similarity(self, explanation_true, explanation_pred):
+      # Construct the combined vocabulary
+      vocabulary = set(tokens1 + tokens2)
+      
+      # Construct binary vectors
+      vector1 = [1 if token in tokens1 else 0 for token in vocabulary]
+      vector2 = [1 if token in tokens2 else 0 for token in vocabulary]
+      
+      # Compute the dot product
+      dot_product = sum([vector1[i] * vector2[i] for i in range(len(vocabulary))])
+      
+      # Compute the norms
+      norm1 = sqrt(sum([vector1[i]**2 for i in range(len(vocabulary))]))
+      norm2 = sqrt(sum([vector2[i]**2 for i in range(len(vocabulary))]))
+      
+      # Compute the cosine similarity
+      similarity = dot_product / (norm1 * norm2)
+      
+      return similarity
+
+  a = ['hello', 'world', 'I', 'am', 'bored']
+  b = ['hello', 'you', 'I', 'am', 'bored', 'can']
+
+  print(cosine_similarity(a, b))
+
 
 
 

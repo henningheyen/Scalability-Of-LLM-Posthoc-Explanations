@@ -68,6 +68,21 @@ class ZeroShotNLI:
         probs = self.predict_for_lime(sentence_pairs)
         return [np.argmax(prob) for prob in probs]
 
+    def get_predictions_mnli(model_name, test_set):
+
+        model = AutoModelForSequenceClassification.from_pretrained(f'cross-encoder/{model_name}')
+        tokenizer = AutoTokenizer.from_pretrained(f'cross-encoder/{model_name}', use_fast= False)
+
+        features = tokenizer(test_set, padding=True, truncation=True, return_tensors="pt")
+
+        model.eval()
+        with torch.no_grad():
+            scores = model(**features).logits
+            label_mapping = ['contradiction', 'entailment', 'neutral']
+            labels = [label_mapping[score_max] for score_max in scores.argmax(dim=1)]
+            return scores.argmax(dim=1).tolist()
+
+
             
 
 class FewShotLearner:
