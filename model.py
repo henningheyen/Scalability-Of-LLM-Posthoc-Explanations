@@ -54,8 +54,8 @@ class ZeroShotNLI:
         self.classifier = AutoModelForSequenceClassification.from_pretrained(f'cross-encoder/{model_name}')
         self.tokenizer = AutoTokenizer.from_pretrained(f'cross-encoder/{model_name}', use_fast= False)
 
-    def predict_for_lime(self, sentence_pairs):
-
+    def predict(self, sentence_pairs, candidate_labels_list=None):
+        
         features = self.tokenizer(sentence_pairs, padding=True, truncation=True, return_tensors="pt")
 
         self.classifier.eval()
@@ -65,7 +65,7 @@ class ZeroShotNLI:
 
     def get_predictions(self, sentence_pairs):
 
-        probs = self.predict_for_lime(sentence_pairs)
+        probs = self.predict(sentence_pairs)
         return [np.argmax(prob) for prob in probs]
 
     def get_predictions_mnli(model_name, test_set):
