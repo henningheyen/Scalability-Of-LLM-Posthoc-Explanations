@@ -8,11 +8,14 @@ from math import sqrt
 
 class Explainer:
   
-  def __init__(self, class_names=None, random_state=42, kernel_width=25):
+  def __init__(self, class_names=None, random_state=42, kernel_width=25, split_expression=lambda x: x.split()):
+    # split_expression=r'\W+' orinially but we split by whitespace by default
+
     self.class_names = class_names
     self.random_state = random_state
     self.kernel_width = kernel_width
-    self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state, kernel_width=kernel_width)
+    self.split_expression = split_expression
+    self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state, kernel_width=kernel_width, split_expression=split_expression)
 
   def compute_explanations(self, sentences, model, num_samples=100, num_features=None, task=None, class_names_list=None):
     explanations = []
@@ -99,7 +102,8 @@ class Explainer:
 
       # Removing the rationale from the original sentence
       tokens = (sentence_pair[0] + " [SEP] " + sentence_pair[1]).split()
-      tokens_minus_rationale = self.remove_top_lime_tokens(rationale, tokens)
+      # tokens_minus_rationale = self.remove_top_lime_tokens(rationale, tokens) old version
+      tokens_minus_rationale = [token for token in tokens if token not in rationale or token == '[SEP]'] # [SEP] should never be removed for NLI task
       sentence_new = ' '.join(tokens_minus_rationale)
 
       # Computing new probability for predicted class
@@ -124,21 +128,6 @@ class Explainer:
 
       return comprehensiveness
 
-  def aggregated_metric(self, metric, explanation, sentence_pair, predict, bins=[0.1, 0.3, 0.5], verbose=False):
-
-    if metric not in ['comprehensiveness', 'sufficiency']:
-      raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
-
-    aggregate = []
-
-    for top_percent in bins:
-      if metric == 'comprehensiveness':
-        comp = self.comprehensiveness(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
-        aggregate.append(comp)    
-      else:
-        suff = self.sufficiency(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
-        aggregate.append(suff)    
-    return np.mean(aggregate)
 
   def sufficiency(self, explanation, sentence_pair, predict, top_k=None, top_percent=None, verbose=True):
 
@@ -147,6 +136,7 @@ class Explainer:
 
     # Forming new_sentence from rationale while retaining order from old_sentence
     tokens = (sentence_pair[0] + " [SEP] " + sentence_pair[1]).split()
+
     sentence_new = ' '.join(token for token in tokens if token in rationale or token == "[SEP]")
 
     predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral'
@@ -170,21 +160,38 @@ class Explainer:
 
     return sufficiency
 
-  def get_ratinoale(self, explanation, top_k=None, top_percent=None):
-      expl_list = explanation.as_list(label= explanation.top_labels[0])
+  def aggregated_metric(self, metric, explanation, sentence_pair, predict, bins=[0.1, 0.3, 0.5], verbose=False):
 
-      if top_k is not None:
-          threshold = top_k
-      elif top_percent is not None:
-          threshold = int(np.ceil(len(expl_list) * top_percent))
+    if metric not in ['comprehensiveness', 'sufficiency']:
+      raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
+
+    aggregate = []
+
+    for top_percent in bins:
+      if metric == 'comprehensiveness':
+        comp = self.comprehensiveness(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
+        aggregate.append(comp)    
       else:
-          # if neither top_k nor top_percent is set then return comprehensiveness for top_k=3 rationale
-          threshold = 3
+        suff = self.sufficiency(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
+        aggregate.append(suff)    
+    return np.mean(aggregate)
 
-      rationale = [token_score_pair[0] for token_score_pair in expl_list[:threshold]]
-      return rationale
+  def get_ratinoale(self, explanation, top_k=None, top_percent=None):
+    expl_list = explanation.as_list(label= explanation.top_labels[0])
+    expl_list_sorted = sorted(expl_list, key=lambda x: x[1], reverse=True) # sorting in descending order
+
+    if top_k is not None:
+        threshold = top_k
+    elif top_percent is not None:
+        threshold = int(np.ceil(len(expl_list_sorted) * top_percent))
+    else:
+        # if neither top_k nor top_percent is set then return comprehensiveness for top_k=3 rationale
+        threshold = 3
+
+    rationale = [token_score_pair[0] for token_score_pair in expl_list_sorted[:threshold]]
+    return rationale
       
-
+  # NOT used. Review..
   def remove_top_lime_tokens(self, rationale, tokens):
       # ensure [SEP] is never removed
       if '[SEP]' in rationale:
@@ -206,6 +213,15 @@ class Explainer:
               new_sentence.append(new_token)
       
       return new_sentence
+
+
+  # def lime_tokenize(self, sentence, split_expression=r'\W+'):
+  #   """
+  #   Tokenizes the sentence based on the provided split_expression same as LIME documentation (splits on non-word characters).
+  #   """
+  #   # Using the split_expression as a non-capturing group
+  #   splitter = re.compile(r'(%s)|$' % split_expression)
+  #   return [s for s in splitter.split(sentence) if s]
   
   def get_explanation_list(self, explanations, top_percent):
     
