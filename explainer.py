@@ -32,7 +32,7 @@ class Explainer:
 
       # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
       if class_names_list is not None:
-        class_names_list_temp = [class_names_list_temp[i]]*num_samples
+        class_names_list_temp = [class_names_list[i]]*num_samples
         self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
         top_labels= len(class_names_list[i])
       else:
@@ -261,51 +261,64 @@ class Explainer:
     return f1
 
 
-  def cosine_similarity(self, explanation_true, explanation_pred):
-      # Construct the combined vocabulary
-      vocabulary = set(tokens1 + tokens2)
-      
-      # Construct binary vectors
-      vector1 = [1 if token in tokens1 else 0 for token in vocabulary]
-      vector2 = [1 if token in tokens2 else 0 for token in vocabulary]
-      
-      # Compute the dot product
-      dot_product = sum([vector1[i] * vector2[i] for i in range(len(vocabulary))])
-      
-      # Compute the norms
-      norm1 = sqrt(sum([vector1[i]**2 for i in range(len(vocabulary))]))
-      norm2 = sqrt(sum([vector2[i]**2 for i in range(len(vocabulary))]))
-      
-      # Compute the cosine similarity
-      similarity = dot_product / (norm1 * norm2)
-      
-      return similarity
-
-  def compute_list_iou(list1, list2, threshold=0.5):
+  def compute_macro_iou(self, rationales, ground_truths, threshold=0.5):
       """
       Computes IoU values for each pair of explanations from two lists and checks if they exceed a threshold.
       
       Args:
-      - list1: List of explanations (lists of tokens).
-      - list2: List of explanations (lists of tokens).
+      - rationales: List of explanations (lists of tokens).
+      - ground_truths: List of explanations (lists of tokens).
       - threshold: IoU threshold to consider a match.
       
       Returns:
-      - List of boolean values indicating if the IoU for each pair exceeds the threshold.
+      - average of List of fractions indiction the IOU for each instance
       """
       # Check if lists are of the same length
-      if len(list1) != len(list2):
+      if len(rationales) != len(ground_truths):
           raise ValueError("Both lists should be of the same length.")
       
-      def compute_iou(tokens_span1, tokens_span2):
-          """Helper function to compute IoU for two explanations."""
-          set_span1 = set(tokens_span1)
-          set_span2 = set(tokens_span2)
-          intersection = len(set_span1.intersection(set_span2))
-          union = len(set_span1.union(set_span2))
-          return intersection / union if union != 0 else 0
+      iou_scores = [self.compute_instance_iou(rationale, ground_truth) for rationale, ground_truth in zip(rationales, ground_truths)]
+      return np.mean(iou_scores)
 
-      return [compute_iou(expl1, expl2) > threshold for expl1, expl2 in zip(list1, list2)]
+
+  def compute_instance_iou(self ,rationale, ground_truth):
+    """Helper function to compute IoU for two explanations."""
+    set_rationale = set(rationale)
+    set_ground_truth = set(ground_truth)
+    intersection = len(set_rationale.intersection(set_ground_truth))
+    union = len(set_rationale.union(set_ground_truth))
+    return intersection / union if union != 0 else 0
+
+
+  # similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/rationale_benchmark/metrics.py 
+  def compute_instance_f1(rationale, ground_truth):
+      """
+      Computes the instance F1 score for two given lists of tokens.
+      """
+      set_rationale = set(rationale)
+      set_ground_truth = set(ground_truth)
+      
+      tp = len(set_rationale.intersection(set_ground_truth))
+      fp = len(set_rationale.difference(set_ground_truth))
+      fn = len(set_ground_truth.difference(set_rationale))
+      
+      precision = tp / (tp + fp) if (tp + fp) != 0 else 0
+      recall = tp / (tp + fn) if (tp + fn) != 0 else 0
+      f1 = 2 * precision * recall / (precision + recall) if (precision + recall) != 0 else 0
+      
+      return f1
+
+  def macro_f1_for_lists(rationales, ground_truths):
+      """
+      Computes the macro F1 score for two given lists of lists of tokens.
+      """
+      assert len(rationales) == len(ground_truths), "Both lists must have the same length."
+      
+      f1_scores = [compute_instance_f1(r, gt) for r, gt in zip(rationales, ground_truths)]
+      
+      macro_f1 = sum(f1_scores) / len(f1_scores)
+      
+      return macro_f1
 
 
 
@@ -349,47 +362,47 @@ class Explainer:
 
   #   return explanations
 
-class Explainer2:
+# class Explainer2:
 
-  def __init__(self, class_names=None, random_state=42):
-    self.class_names = class_names
-    self.random_state = random_state
-    self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
+#   def __init__(self, class_names=None, random_state=42):
+#     self.class_names = class_names
+#     self.random_state = random_state
+#     self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
 
-  def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
+#   def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
 
-    explanations = []
+#     explanations = []
 
-    # NLI sentences are pairs of premises and hypotheses
-    if task == 'NLI':
-      sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
-      top_labels=3
+#     # NLI sentences are pairs of premises and hypotheses
+#     if task == 'NLI':
+#       sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
+#       top_labels=3
 
-    for i, sentence in enumerate(sentences):
+#     for i, sentence in enumerate(sentences):
 
-      # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
-      if class_names_list is not None:
-        self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
-        top_labels= len(class_names_list[i])
+#       # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
+#       if class_names_list is not None:
+#         self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
+#         top_labels= len(class_names_list[i])
 
-      # if no specific number is given then set num_feature to the number of tokens
-      if num_features is None:
-        num_features_temp = len(sentence.split())
-      else:
-        num_features_temp = num_features
+#       # if no specific number is given then set num_feature to the number of tokens
+#       if num_features is None:
+#         num_features_temp = len(sentence.split())
+#       else:
+#         num_features_temp = num_features
 
-      explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
-      explanations.append(explanation)
+#       explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
+#       explanations.append(explanation)
 
-    return explanations
+#     return explanations
 
-  def show_lime(self, explanations, show_all_labels=False):
+#   def show_lime(self, explanations, show_all_labels=False):
     
-    for explanation in explanations:
-      if show_all_labels:
-        label = None
-      else:
-        label = [explanation.top_labels[0]]
+#     for explanation in explanations:
+#       if show_all_labels:
+#         label = None
+#       else:
+#         label = [explanation.top_labels[0]]
 
-      explanation.show_in_notebook(text=True, labels=label)
-      print('-'*100)
+#       explanation.show_in_notebook(text=True, labels=label)
+#       print('-'*100)

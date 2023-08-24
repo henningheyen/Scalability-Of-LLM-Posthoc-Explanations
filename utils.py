@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import pandas as pd
 from datasets import load_dataset
 
 
@@ -160,3 +161,75 @@ def make_test_set(size, dataset_name='MNLI', seed=42):
 #deberta: ['contradiction', 'entailment', 'neutral']
 #mnli: ['entailment', 'neutral', 'contradiction']
 #snli: ['entailment', 'neutral', 'contradiction']
+
+def make_test_set_cose(size, seed=42): # 1221 max size for mnli
+
+  dataset = load_dataset("cos_e", 'v1.11')['validation']
+
+  random.seed(seed)
+  random_indices = random.sample(list(range(len(dataset['question']))), size)
+
+  test_set = dataset[random_indices]
+  candidate_labels_list = test_set['choices']
+
+  true_labels = [test_set['choices'][i].index(test_set['answer'][i]) for i in range(size)]
+
+  return {
+      'question': test_set['question'],
+      'choices': test_set['choices'],
+      'answer': test_set['answer'],
+      'true_labels': true_labels,
+      'extractive_explanation': test_set['extractive_explanation'],
+      'candidate_labels_list': candidate_labels_list,
+  }
+
+def make_test_set_mnli(size, seed=42): # 9815 max size for mnli
+
+  dataset = load_dataset("multi_nli")['validation_matched']
+  new_labels = [2 if label == 1 else 1 if label == 0 else 0 for label in dataset['label']] # original: [entailment:0,neutral:1,contradiction:2] deberta: [contradiction:0,entailment:1,neutral:2]
+
+  # Randomly sample the desired number of indices
+  random.seed(seed)
+  random_indices = random.sample(list(range(len(dataset['label']))), size)
+
+  test_set = [(dataset['premise'][i], dataset['hypothesis'][i]) for i in random_indices]
+  print('check3')
+  test_labels = [new_labels[i] for i in random_indices]  
+  test_labels_text = ['contradiction' if test_labels[i]==0 else 'entailment' if test_labels[i]==1 else 'neutral' for i in range(len(test_labels))]
+
+  return {
+      'sentence_pairs': test_set, 
+      'test_labels': test_labels, 
+      'test_labels_text': test_labels_text
+      }
+
+def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42): # 9842 max size for mnli
+
+  #loading data
+  df = pd.read_csv(path)
+  df = df[['gold_label', 'Sentence1', 'Sentence2', 'Sentence1_marked_1', 'Sentence2_marked_1', 'Sentence1_Highlighted_1', 'Sentence2_Highlighted_1']]
+
+  dataset = df.to_dict(orient='list')
+
+  random.seed(seed)
+  random_indices = random.sample(list(range(df.shape[0])), size)
+
+  sentence_pairs = [(dataset['Sentence1'][i], dataset['Sentence2'][i]) for i in random_indices]
+  test_labels_text = [dataset['gold_label'][i] for i in random_indices]
+  label_to_num = {'contradiction': 0, 'entailment': 1, 'neutral': 2}   
+  test_labels = [label_to_num[label] for label in test_labels_text]
+  sentence1_marked = [dataset['Sentence1_marked_1'][i] for i in random_indices]
+  sentence2_marked = [dataset['Sentence2_marked_1'][i] for i in random_indices]
+  sentence1_highlights = [dataset['Sentence1_Highlighted_1'][i] for i in random_indices]
+  sentence2_highlights = [dataset['Sentence2_Highlighted_1'][i] for i in random_indices]
+
+
+  return {
+      'sentence_pairs': sentence_pairs, 
+      'test_labels': test_labels, 
+      'test_labels_text': test_labels_text,
+      'sentence1_marked': sentence1_marked,
+      'sentence2_marked': sentence2_marked,
+      'sentence1_highlights': sentence1_highlights,
+      'sentence2_highlights': sentence2_highlights,
+      }
