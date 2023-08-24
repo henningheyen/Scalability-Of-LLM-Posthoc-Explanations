@@ -95,19 +95,26 @@ class Explainer:
       print('-'*100)
 
 
-  def comprehensiveness(self, explanation, sentence_pair, predict, top_k=None, top_percent=None, verbose=True):
+  def comprehensiveness(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI'):
       
+      if task not in ['NLI', 'ZSC']:
+        raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
+
       # Rationale is the top_k tokens 
       rationale = self.get_ratinoale(explanation, top_k=top_k, top_percent=top_percent) 
 
+      # Forming new_sentence from rationale while retaining order from old_sentence
+      if task == 'NLI': # Natural Language Inference
+        tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
+      elif task == 'ZSC': # Zero Shot Classification
+        tokens = sentence.split()
+
       # Removing the rationale from the original sentence
-      tokens = (sentence_pair[0] + " [SEP] " + sentence_pair[1]).split()
-      # tokens_minus_rationale = self.remove_top_lime_tokens(rationale, tokens) old version
       tokens_minus_rationale = [token for token in tokens if token not in rationale or token == '[SEP]'] # [SEP] should never be removed for NLI task
       sentence_new = ' '.join(tokens_minus_rationale)
 
       # Computing new probability for predicted class
-      predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral'
+      predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral' (NLI)
       prediction_new = predict([sentence_new])[0]
       probability_new = prediction_new[predicted_class_index]
 
@@ -118,7 +125,7 @@ class Explainer:
       # Print statement
       if verbose:
           print('rationale: ', rationale)
-          print('sentence_old: ', (sentence_pair[0] + " [SEP] " + sentence_pair[1]))    
+          print('sentence_old: ', sentence)
           print('sentence_new: ', sentence_new)    
           print('probability_old: ', probability_old)
           print('predicted label_old: ', self.explainer.class_names[explanation.top_labels[0]])
@@ -129,14 +136,20 @@ class Explainer:
       return comprehensiveness
 
 
-  def sufficiency(self, explanation, sentence_pair, predict, top_k=None, top_percent=None, verbose=True):
+  def sufficiency(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI'):
+
+    if task not in ['NLI', 'ZSC']:
+      raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
     # Rationale is the top_k tokens 
     rationale = self.get_ratinoale(explanation, top_k=top_k, top_percent=top_percent) 
 
     # Forming new_sentence from rationale while retaining order from old_sentence
-    tokens = (sentence_pair[0] + " [SEP] " + sentence_pair[1]).split()
-
+    if task == 'NLI': # Natural Language Inference
+      tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
+    elif task == 'ZSC': # Zero Shot Classification
+      tokens = sentence.split()
+    
     sentence_new = ' '.join(token for token in tokens if token in rationale or token == "[SEP]")
 
     predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral'
@@ -150,7 +163,7 @@ class Explainer:
 
     if verbose:
         print('rationale: ', rationale)
-        print('sentence_old: ', (sentence_pair[0] + " [SEP] " + sentence_pair[1]))    
+        print('sentence_old: ', sentence)    
         print('sentence_new: ', sentence_new)    
         print('probability_old: ', probability_old)
         print('predicted label_old: ', self.explainer.class_names[explanation.top_labels[0]])
@@ -160,19 +173,22 @@ class Explainer:
 
     return sufficiency
 
-  def aggregated_metric(self, metric, explanation, sentence_pair, predict, bins=[0.1, 0.3, 0.5], verbose=False):
+  def aggregated_metric(self, metric, explanation, sentence, predict, bins=[0.1, 0.3, 0.5], verbose=False, task='NLI'):
 
     if metric not in ['comprehensiveness', 'sufficiency']:
       raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
+
+    if task not in ['NLI', 'ZSC']:
+      raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
     aggregate = []
 
     for top_percent in bins:
       if metric == 'comprehensiveness':
-        comp = self.comprehensiveness(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
+        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task)
         aggregate.append(comp)    
       else:
-        suff = self.sufficiency(explanation, sentence_pair, predict, top_percent=top_percent, verbose=verbose)
+        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task)
         aggregate.append(suff)    
     return np.mean(aggregate)
 
