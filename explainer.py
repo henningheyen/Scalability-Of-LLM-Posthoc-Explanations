@@ -33,7 +33,7 @@ class Explainer:
       # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
       if class_names_list is not None:
         class_names_list_temp = [class_names_list[i]]*num_samples
-        self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
+        self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state, kernel_width=self.kernel_width, split_expression=self.split_expression)
         top_labels= len(class_names_list[i])
       else:
          class_names_list_temp = [self.class_names]*num_samples
@@ -95,85 +95,106 @@ class Explainer:
       print('-'*100)
 
 
-  def comprehensiveness(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI'):
+  def comprehensiveness(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI', candidate_labels=None):
       
-      if task not in ['NLI', 'ZSC']:
-        raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
+    if task not in ['NLI', 'ZSC']:
+      raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
-      # Rationale is the top_k tokens 
-      rationale = self.get_ratinoale(explanation, top_k=top_k, top_percent=top_percent) 
+    # explanation_tokens is the top_k tokens 
+    explanation_tokens = self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) 
 
-      # Forming new_sentence from rationale while retaining order from old_sentence
-      if task == 'NLI': # Natural Language Inference
-        tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
-      elif task == 'ZSC': # Zero Shot Classification
-        tokens = sentence.split()
+    # Forming new_sentence from explanation_tokens while retaining order from old_sentence
+    if task == 'NLI': # Natural Language Inference
+      tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
+    elif task == 'ZSC': # Zero Shot Classification
+      if candidate_labels==None:
+        raise TypeError("provide candidate_labels in ZSC setting")
+      tokens = sentence.split()
 
-      # Removing the rationale from the original sentence
-      tokens_minus_rationale = [token for token in tokens if token not in rationale or token == '[SEP]'] # [SEP] should never be removed for NLI task
-      sentence_new = ' '.join(tokens_minus_rationale)
+    # Removing the explanation_tokens from the original sentence
+    tokens_minus_explanation_tokens = [token for token in tokens if token not in explanation_tokens or token == '[SEP]'] # [SEP] should never be removed for NLI task
+    sentence_new = ' '.join(tokens_minus_explanation_tokens)
 
-      # Computing new probability for predicted class
-      predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral' (NLI)
+    # Computing new probability for predicted class
+    predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral' (NLI)
+    if task == 'NLI':
       prediction_new = predict([sentence_new])[0]
-      probability_new = prediction_new[predicted_class_index]
+      predicted_label_old = self.explainer.class_names[explanation.top_labels[0]]
+      predicted_label_new = self.explainer.class_names[np.argmax(prediction_new)]
+    elif task == 'ZSC':
+      prediction_new = predict([sentence_new], candidate_labels_list=[candidate_labels])[0]
+      predicted_label_old = candidate_labels[explanation.top_labels[0]]
+      predicted_label_new = candidate_labels[np.argmax(prediction_new)]
+      
+    probability_new = prediction_new[predicted_class_index]
 
-      # Comparing predictions (with and without rationale)
-      probability_old = max(explanation.predict_proba) #for the predicted class
-      comprehensiveness = probability_old - probability_new
+    # Comparing predictions (with and without explanation_tokens)
+    probability_old = max(explanation.predict_proba) #for the predicted class
+    comprehensiveness = probability_old - probability_new
 
-      # Print statement
-      if verbose:
-          print('rationale: ', rationale)
-          print('sentence_old: ', sentence)
-          print('sentence_new: ', sentence_new)    
-          print('probability_old: ', probability_old)
-          print('predicted label_old: ', self.explainer.class_names[explanation.top_labels[0]])
-          print('probability_new: ', probability_new)    
-          print('predicted label_new: ', self.explainer.class_names[np.argmax(prediction_new)])
-          print('comprehensiveness: ', comprehensiveness, '\n')    
+    # Print statement
+    if verbose:
+        print('explanation_tokens: ', explanation_tokens)
+        print('sentence_old: ', sentence)
+        print('sentence_new: ', sentence_new)    
+        print('probability_old: ', probability_old)
+        print('predicted_label_old: ', predicted_label_old)
+        print('probability_new: ', probability_new)    
+        print('predicted_label_new: ', predicted_label_new)
+        print('comprehensiveness: ', comprehensiveness, '\n')    
 
-      return comprehensiveness
+    return comprehensiveness
 
 
-  def sufficiency(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI'):
+  def sufficiency(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI', candidate_labels=None):
 
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
-    # Rationale is the top_k tokens 
-    rationale = self.get_ratinoale(explanation, top_k=top_k, top_percent=top_percent) 
+    # explanation_tokens is the top_k tokens 
+    explanation_tokens = self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) 
 
-    # Forming new_sentence from rationale while retaining order from old_sentence
+    # Forming new_sentence from explanation_tokens while retaining order from old_sentence
     if task == 'NLI': # Natural Language Inference
       tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
     elif task == 'ZSC': # Zero Shot Classification
+      if candidate_labels==None:
+          raise TypeError("provide candidate_labels in ZSC setting")
       tokens = sentence.split()
     
-    sentence_new = ' '.join(token for token in tokens if token in rationale or token == "[SEP]")
+    sentence_new = ' '.join(token for token in tokens if token in explanation_tokens or token == "[SEP]")
 
+    # Computing new probability for predicted class
     predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral'
-    prediction_new = predict([sentence_new])[0]
+    if task == 'NLI':
+      prediction_new = predict([sentence_new])[0]
+      predicted_label_old = self.explainer.class_names[explanation.top_labels[0]]
+      predicted_label_new = self.explainer.class_names[np.argmax(prediction_new)]
+    elif task == 'ZSC':
+      prediction_new = predict([sentence_new], candidate_labels_list=[candidate_labels])[0]
+      predicted_label_old = candidate_labels[explanation.top_labels[0]]
+      predicted_label_new = candidate_labels[np.argmax(prediction_new)]
+        
     probability_new = prediction_new[predicted_class_index]
 
-    # Comparing predictions (with and without rationale)
+    # Comparing predictions (with and without explanation_tokens)
     probability_old = max(explanation.predict_proba) #for the predicted class
 
     sufficiency = probability_old - probability_new
 
     if verbose:
-        print('rationale: ', rationale)
+        print('explanation_tokens: ', explanation_tokens)
         print('sentence_old: ', sentence)    
         print('sentence_new: ', sentence_new)    
         print('probability_old: ', probability_old)
-        print('predicted label_old: ', self.explainer.class_names[explanation.top_labels[0]])
+        print('predicted_label_old: ', predicted_label_old)
         print('probability_new: ', probability_new)    
-        print('predicted label_new: ', self.explainer.class_names[np.argmax(prediction_new)])
+        print('predicted_label_new: ', predicted_label_new)
         print('sufficiency: ', sufficiency, '\n')
 
     return sufficiency
 
-  def aggregated_metric(self, metric, explanation, sentence, predict, bins=[0.1, 0.3, 0.5], verbose=False, task='NLI'):
+  def aggregated_metric(self, metric, explanation, sentence, predict, bins=[0.1, 0.3, 0.5], verbose=False, task='NLI', candidate_labels=None):
 
     if metric not in ['comprehensiveness', 'sufficiency']:
       raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
@@ -181,18 +202,22 @@ class Explainer:
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
+    if task == 'ZSC' and candidate_label is None:
+      raise TypeError("provide 'candidate_labels")
+
     aggregate = []
 
     for top_percent in bins:
       if metric == 'comprehensiveness':
-        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task)
+        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=None)
         aggregate.append(comp)    
       else:
-        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task)
+        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=None)
         aggregate.append(suff)    
     return np.mean(aggregate)
 
-  def get_ratinoale(self, explanation, top_k=None, top_percent=None):
+  # returns explanation tokens for a single explanation instance
+  def get_explanation_tokens(self, explanation, top_k=None, top_percent=None):
     expl_list = explanation.as_list(label= explanation.top_labels[0])
     expl_list_sorted = sorted(expl_list, key=lambda x: x[1], reverse=True) # sorting in descending order
 
@@ -201,34 +226,36 @@ class Explainer:
     elif top_percent is not None:
         threshold = int(np.ceil(len(expl_list_sorted) * top_percent))
     else:
-        # if neither top_k nor top_percent is set then return comprehensiveness for top_k=3 rationale
+        # if neither top_k nor top_percent is set then return comprehensiveness for top_k=3 explanation_tokens
         threshold = 3
 
-    rationale = [token_score_pair[0] for token_score_pair in expl_list_sorted[:threshold]]
-    return rationale
-      
-  # NOT used. Review..
-  def remove_top_lime_tokens(self, rationale, tokens):
-      # ensure [SEP] is never removed
-      if '[SEP]' in rationale:
-          rationale.remove("[SEP]")
-      
-      # Create a list for new sentence tokens
-      new_sentence = []
-      
-      for token in tokens:
-          # Split the token into words and punctuation
-          subtokens = re.findall(r'\w+|[^\w\s]', token)
-          
-          # Check each subtoken against the rationale
-          new_subtokens = [subtoken for subtoken in subtokens if subtoken not in rationale or subtoken == 'SEP' or not re.match(r'\w+', subtoken)]
-          
-          # Reassemble the token
-          new_token = ''.join(new_subtokens)
-          if new_token:
-              new_sentence.append(new_token)
-      
-      return new_sentence
+    explanation_tokens = [token_score_pair[0] for token_score_pair in expl_list_sorted[:threshold]]
+    return explanation_tokens
+
+  def get_explanation_list(self, explanations, top_k=None, top_percent=None):
+    return [self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) for explanation in explanations]
+  
+
+  # If LIME was initialised with split_expression=r'\W+' instead of lambda x: x.split() then use this method to remove tokens
+  def remove_explanation_tokens_from_sentence(sentence, explanation_tokens): 
+    # Split the sentence into words using regex
+    words = re.findall(r'\w+|[.,!?;]|\'\w+', old)
+
+    # Removing the rationale from the original sentence while preserving punctuation and apostrophes
+    sentence_new = []
+
+    for word in words:
+        if re.match(r'\w+', word):
+            if word not in rationale:
+                sentence_new.append(word)
+        else:
+            sentence_new.append(word)
+
+
+    # Join the words to form the new sentence
+    sentence_new = ' '.join(sentence_new).replace(' ,', ',').replace(' .', '.').replace(' ?', '?').replace(' !', '!').replace(' ;', ';').replace(" '", "'").replace(' :', ':')
+
+    print(sentence_new)
 
 
   # def lime_tokenize(self, sentence, split_expression=r'\W+'):
@@ -239,16 +266,16 @@ class Explainer:
   #   splitter = re.compile(r'(%s)|$' % split_expression)
   #   return [s for s in splitter.split(sentence) if s]
   
-  def get_explanation_list(self, explanations, top_percent):
+  # def get_explanation_list(self, explanations, top_percent):
     
-    explanation_list = []
+  #   explanation_list = []
     
-    for explanation in explanations:
-        expl_list = [explanation.as_list(label= explanation.top_labels[0])[i][0].lower() for i in range(len(explanation.as_list()))]
-        threshold = int(np.ceil(len(expl_list) * top_percent))
-        explanation_list.append(expl_list[:threshold])
+  #   for explanation in explanations:
+  #       expl_list = [explanation.as_list(label= explanation.top_labels[0])[i][0].lower() for i in range(len(explanation.as_list()))]
+  #       threshold = int(np.ceil(len(expl_list) * top_percent))
+  #       explanation_list.append(expl_list[:threshold])
     
-    return explanation_list
+  #   return explanation_list
   
   def format_explanation_true_list(self, explanation_true_list):
 
@@ -263,26 +290,26 @@ class Explainer:
 
     return explanation_true_list
   
-  def compute_token_f1(self, explanation_true, explanation_pred):
-    true_set = set(explanation_true)
-    pred_set = set(explanation_pred)
+  # def compute_token_f1(self, explanation_true, explanation_pred):
+  #   true_set = set(explanation_true)
+  #   pred_set = set(explanation_pred)
 
-    # Calculate precision and recall
-    precision = len(true_set & pred_set) / len(pred_set) if pred_set else 0
-    recall = len(true_set & pred_set) / len(true_set) if true_set else 0
+  #   # Calculate precision and recall
+  #   precision = len(true_set & pred_set) / len(pred_set) if pred_set else 0
+  #   recall = len(true_set & pred_set) / len(true_set) if true_set else 0
 
-    # Calculate F1 score
-    f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
+  #   # Calculate F1 score
+  #   f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
 
-    return f1
+  #   return f1
 
 
-  def compute_macro_iou(self, rationales, ground_truths, threshold=0.5):
+  def compute_macro_iou(self, explanation_tokenss, ground_truths, threshold=0.5):
       """
       Computes IoU values for each pair of explanations from two lists and checks if they exceed a threshold.
       
       Args:
-      - rationales: List of explanations (lists of tokens).
+      - explanation_tokenss: List of explanations (lists of tokens).
       - ground_truths: List of explanations (lists of tokens).
       - threshold: IoU threshold to consider a match.
       
@@ -290,33 +317,33 @@ class Explainer:
       - average of List of fractions indiction the IOU for each instance
       """
       # Check if lists are of the same length
-      if len(rationales) != len(ground_truths):
+      if len(explanation_tokenss) != len(ground_truths):
           raise ValueError("Both lists should be of the same length.")
       
-      iou_scores = [self.compute_instance_iou(rationale, ground_truth) for rationale, ground_truth in zip(rationales, ground_truths)]
+      iou_scores = [self.compute_instance_iou(explanation_tokens, ground_truth) for explanation_tokens, ground_truth in zip(explanation_tokenss, ground_truths)]
       return np.mean(iou_scores)
 
 
-  def compute_instance_iou(self ,rationale, ground_truth):
+  def compute_instance_iou(self ,explanation_tokens, ground_truth):
     """Helper function to compute IoU for two explanations."""
-    set_rationale = set(rationale)
+    set_explanation_tokens = set(explanation_tokens)
     set_ground_truth = set(ground_truth)
-    intersection = len(set_rationale.intersection(set_ground_truth))
-    union = len(set_rationale.union(set_ground_truth))
+    intersection = len(set_explanation_tokens.intersection(set_ground_truth))
+    union = len(set_explanation_tokens.union(set_ground_truth))
     return intersection / union if union != 0 else 0
 
 
-  # similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/rationale_benchmark/metrics.py 
-  def compute_instance_f1(rationale, ground_truth):
+  # similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/explanation_tokens_benchmark/metrics.py 
+  def compute_instance_f1(self, explanation_tokens, ground_truth):
       """
       Computes the instance F1 score for two given lists of tokens.
       """
-      set_rationale = set(rationale)
+      set_explanation_tokens = set(explanation_tokens)
       set_ground_truth = set(ground_truth)
       
-      tp = len(set_rationale.intersection(set_ground_truth))
-      fp = len(set_rationale.difference(set_ground_truth))
-      fn = len(set_ground_truth.difference(set_rationale))
+      tp = len(set_explanation_tokens.intersection(set_ground_truth))
+      fp = len(set_explanation_tokens.difference(set_ground_truth))
+      fn = len(set_ground_truth.difference(set_explanation_tokens))
       
       precision = tp / (tp + fp) if (tp + fp) != 0 else 0
       recall = tp / (tp + fn) if (tp + fn) != 0 else 0
@@ -324,13 +351,13 @@ class Explainer:
       
       return f1
 
-  def macro_f1_for_lists(rationales, ground_truths):
+  def compute_macro_f1(self, explanation_tokenss, ground_truths):
       """
       Computes the macro F1 score for two given lists of lists of tokens.
       """
-      assert len(rationales) == len(ground_truths), "Both lists must have the same length."
+      assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
       
-      f1_scores = [compute_instance_f1(r, gt) for r, gt in zip(rationales, ground_truths)]
+      f1_scores = [self.compute_instance_f1(r, gt) for r, gt in zip(explanation_tokenss, ground_truths)]
       
       macro_f1 = sum(f1_scores) / len(f1_scores)
       

@@ -162,12 +162,17 @@ def make_test_set(size, dataset_name='MNLI', seed=42):
 #mnli: ['entailment', 'neutral', 'contradiction']
 #snli: ['entailment', 'neutral', 'contradiction']
 
-def make_test_set_cose(size, seed=42): # 1221 max size for mnli
+def make_test_set_cose(size, seed=42, remove_bad_explanations=False): # 1221 max size for mnli
 
   dataset = load_dataset("cos_e", 'v1.11')['validation']
 
-  random.seed(seed)
-  random_indices = random.sample(list(range(len(dataset['question']))), size)
+  if remove_bad_explanations:
+    idx = [i for i in range(len(dataset['question'])) if len(dataset['extractive_explanation'][i].split()) < len(dataset['question'][i].split())]
+    random.seed(seed)
+    random_indices = random.sample(idx, size) 
+  else:
+    random.seed(seed)
+    random_indices = random.sample(list(range(len(dataset['question']))), size)
 
   test_set = dataset[random_indices]
   candidate_labels_list = test_set['choices']
@@ -179,7 +184,7 @@ def make_test_set_cose(size, seed=42): # 1221 max size for mnli
       'choices': test_set['choices'],
       'answer': test_set['answer'],
       'true_labels': true_labels,
-      'extractive_explanation': test_set['extractive_explanation'],
+      'extractive_explanation': [test_set['extractive_explanation'][i].split() for i in range(size)],
       'candidate_labels_list': candidate_labels_list,
   }
 
@@ -191,9 +196,7 @@ def make_test_set_mnli(size, seed=42): # 9815 max size for mnli
   # Randomly sample the desired number of indices
   random.seed(seed)
   random_indices = random.sample(list(range(len(dataset['label']))), size)
-
   test_set = [(dataset['premise'][i], dataset['hypothesis'][i]) for i in random_indices]
-  print('check3')
   test_labels = [new_labels[i] for i in random_indices]  
   test_labels_text = ['contradiction' if test_labels[i]==0 else 'entailment' if test_labels[i]==1 else 'neutral' for i in range(len(test_labels))]
 
@@ -203,11 +206,15 @@ def make_test_set_mnli(size, seed=42): # 9815 max size for mnli
       'test_labels_text': test_labels_text
       }
 
-def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42): # 9842 max size for mnli
+def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42, remove_bad_explanations=False): # 9842 max size for mnli
 
   #loading data
   df = pd.read_csv(path)
   df = df[['gold_label', 'Sentence1', 'Sentence2', 'Sentence1_marked_1', 'Sentence2_marked_1', 'Sentence1_Highlighted_1', 'Sentence2_Highlighted_1']]
+
+  if remove_bad_explanations: 
+    # Remove wrongyl annotated instances
+    df.drop(index=[262, 1572, 1642, 2041, 5317, 5779, 5780, 5918, 6973, 7940, 9233, 9305], inplace=True)
 
   dataset = df.to_dict(orient='list')
 
@@ -223,6 +230,27 @@ def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42): # 9842 max si
   sentence1_highlights = [dataset['Sentence1_Highlighted_1'][i] for i in random_indices]
   sentence2_highlights = [dataset['Sentence2_Highlighted_1'][i] for i in random_indices]
 
+  # Getting extractive explanatinos. We use the set of highlights accross both premise and hyporthesis:
+  extractive_explanations = []
+  for i in range(size):
+
+    highlights_1_str = sentence1_highlights[i].split(',')
+    highlights_2_str = sentence2_highlights[i].split(',')
+
+    if highlights_1_str[0] == '{}':
+      highlights_1_idx = []
+    else:
+      highlights_1_idx = [int(highlights_1_str[j]) for j in range(len(highlights_1_str))]
+
+    if highlights_2_str[0] == '{}':
+      highlights_2_idx = []
+    else:
+      highlights_2_idx = [int(highlights_2_str[j]) for j in range(len(highlights_2_str))]
+
+    highlights_1_tokens = [sentence_pairs[i][0].split()[j] for j in highlights_1_idx]
+    highlights_2_tokens = [sentence_pairs[i][1].split()[j] for j in highlights_2_idx]
+
+    extractive_explanations.append(list(set(highlights_1_tokens + highlights_2_tokens)))
 
   return {
       'sentence_pairs': sentence_pairs, 
@@ -232,4 +260,70 @@ def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42): # 9842 max si
       'sentence2_marked': sentence2_marked,
       'sentence1_highlights': sentence1_highlights,
       'sentence2_highlights': sentence2_highlights,
+      'extractive_explanation': extractive_explanations,
       }
+
+# old method to find mislabeld instances
+# def clean_esnli(df):
+
+#   # print('1568')
+#   # print(df.loc[1568,'Sentence1_marked_1'])
+#   # print(df.loc[1568,'Sentence2_marked_1'])
+#   # print(df.loc[1568,'Sentence1_Highlighted_1'])
+#   # print(df.loc[1568,'Sentence2_Highlighted_1'], '\n')
+
+
+#   #df.drop(index=[262, 1570, 1571, 1569], inplace=True)
+
+#   size = df.shape[0]
+
+#   dataset = df.to_dict(orient='list')
+
+#   sentence_pairs = [(dataset['Sentence1'][i], dataset['Sentence2'][i]) for i in range(size)]
+#   test_labels_text = [dataset['gold_label'][i] for i in range(size)]
+#   label_to_num = {'contradiction': 0, 'entailment': 1, 'neutral': 2}   
+#   test_labels = [label_to_num[label] for label in test_labels_text]
+#   sentence1_marked = [dataset['Sentence1_marked_1'][i] for i in range(size)]
+#   sentence2_marked = [dataset['Sentence2_marked_1'][i] for i in range(size)]
+#   sentence1_highlights = [dataset['Sentence1_Highlighted_1'][i] for i in range(size)]
+#   sentence2_highlights = [dataset['Sentence2_Highlighted_1'][i] for i in range(size)]
+
+#   extractive_explanations = []
+#   for i in range(size):
+
+#     highlights_1_str = sentence1_highlights[i].split(',')
+#     highlights_2_str = sentence2_highlights[i].split(',')
+
+#     if highlights_1_str[0] == '{}':
+#       highlights_1_idx = []
+#     else:
+#       highlights_1_idx = [int(highlights_1_str[j]) for j in range(len(highlights_1_str))]
+
+#     if highlights_2_str[0] == '{}':
+#       highlights_2_idx = []
+#     else:
+#       highlights_2_idx = [int(highlights_2_str[j]) for j in range(len(highlights_2_str))]
+
+#     try:
+#       highlights_1_tokens = [sentence_pairs[i][0].split()[j] for j in highlights_1_idx]
+#     except IndexError:
+#         print(i)
+#         print(df.loc[i,'Sentence1_marked_1'])
+#         print(df.loc[i,'Sentence2_marked_1'])
+#         print(df.loc[i,'Sentence1_Highlighted_1'])
+#         print(df.loc[i,'Sentence2_Highlighted_1'], '\n')   
+#     try:
+#       highlights_2_tokens = [sentence_pairs[i][1].split()[j] for j in highlights_2_idx]
+#     except IndexError:
+#         print(i)
+#         print(df.loc[i,'Sentence1_marked_1'])
+#         print(df.loc[i,'Sentence2_marked_1'])
+#         print(df.loc[i,'Sentence1_Highlighted_1'])
+#         print(df.loc[i,'Sentence2_Highlighted_1'], '\n')     
+
+#     extractive_explanations.append(list(set(highlights_1_tokens + highlights_2_tokens)))
+
+#   print('extractive_explanations ', extractive_explanations)
+
+
+
