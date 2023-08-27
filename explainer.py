@@ -202,17 +202,17 @@ class Explainer:
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
 
-    if task == 'ZSC' and candidate_label is None:
+    if task == 'ZSC' and candidate_labels is None:
       raise TypeError("provide 'candidate_labels")
 
     aggregate = []
 
     for top_percent in bins:
       if metric == 'comprehensiveness':
-        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=None)
+        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=candidate_labels)
         aggregate.append(comp)    
       else:
-        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=None)
+        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=candidate_labels)
         aggregate.append(suff)    
     return np.mean(aggregate)
 
