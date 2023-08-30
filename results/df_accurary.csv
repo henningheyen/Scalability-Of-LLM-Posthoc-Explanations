@@ -1,0 +1,13 @@
+Dataset,Model_Size,Metric,Value,95% C.I.
+esnli,xsmall,accuracy,0.92034,"(0.91485, 0.92562)"
+esnli,small,accuracy,0.92197,"(0.91688, 0.92735)"
+esnli,base,accuracy,0.93142,"(0.92654, 0.9366)"
+esnli,large,accuracy,0.93213,"(0.92725, 0.93721)"
+mnli,xsmall,accuracy,0.87835,"(0.87162, 0.88467)"
+mnli,small,accuracy,0.87794,"(0.87121, 0.88406)"
+mnli,base,accuracy,0.89995,"(0.89404, 0.90565)"
+mnli,large,accuracy,0.90199,"(0.89628, 0.90769)"
+cose,xsmall,accuracy,0.33088,"(0.30467, 0.3579)"
+cose,small,accuracy,0.33579,"(0.30876, 0.362)"
+cose,base,accuracy,0.35872,"(0.33251, 0.38329)"
+cose,large,accuracy,0.37756,"(0.35053, 0.40541)"

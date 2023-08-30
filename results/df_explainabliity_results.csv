@@ -1,0 +1,13 @@
+Dataset,Model Size,Macro Comprehensiveness,Macro Sufficiency,Macro IOU,Macro Token F1
+e-SNLI,xsmall,0.726,0.146,0.271,0.402
+e-SNLI,small,0.724,0.201,0.252,0.376
+e-SNLI,base,0.764,0.187,0.25,0.374
+e-SNLI,large,0.778,0.196,0.25,0.371
+MNLI,xsmall,0.785,0.16,-,-
+MNLI,small,0.817,0.131,-,-
+MNLI,base,0.796,0.205,-,-
+MNLI,large,0.823,0.19,-,-
+CoS-e,xsmall,0.304,-0.107,0.233,0.357
+CoS-e,small,0.316,-0.143,0.231,0.352
+CoS-e,base,0.356,-0.059,0.235,0.365
+CoS-e,large,0.391,-0.08,0.23,0.358

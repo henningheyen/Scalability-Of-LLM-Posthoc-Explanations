@@ -326,8 +326,11 @@ class Explainer:
 
   def compute_instance_iou(self ,explanation_tokens, ground_truth):
     """Helper function to compute IoU for two explanations."""
-    set_explanation_tokens = set(explanation_tokens)
-    set_ground_truth = set(ground_truth)
+    #set_explanation_tokens = set(explanation_tokens)
+    #set_ground_truth = set(ground_truth)
+    # Remove punctuation and convert to sets
+    set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
+    set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
     intersection = len(set_explanation_tokens.intersection(set_ground_truth))
     union = len(set_explanation_tokens.union(set_ground_truth))
     return intersection / union if union != 0 else 0
@@ -338,8 +341,12 @@ class Explainer:
       """
       Computes the instance F1 score for two given lists of tokens.
       """
-      set_explanation_tokens = set(explanation_tokens)
-      set_ground_truth = set(ground_truth)
+      #set_explanation_tokens = set(explanation_tokens)
+      #set_ground_truth = set(ground_truth)
+
+      # Remove punctuation and convert to sets
+      set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
+      set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
       
       tp = len(set_explanation_tokens.intersection(set_ground_truth))
       fp = len(set_explanation_tokens.difference(set_ground_truth))
