@@ -236,26 +236,26 @@ class Explainer:
     return [self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) for explanation in explanations]
   
 
-  # If LIME was initialised with split_expression=r'\W+' instead of lambda x: x.split() then use this method to remove tokens
-  def remove_explanation_tokens_from_sentence(sentence, explanation_tokens): 
-    # Split the sentence into words using regex
-    words = re.findall(r'\w+|[.,!?;]|\'\w+', old)
+  # # If LIME was initialised with split_expression=r'\W+' instead of lambda x: x.split() then use this method to remove tokens
+  # def remove_explanation_tokens_from_sentence(sentence, explanation_tokens): 
+  #   # Split the sentence into words using regex
+  #   words = re.findall(r'\w+|[.,!?;]|\'\w+', old)
 
-    # Removing the rationale from the original sentence while preserving punctuation and apostrophes
-    sentence_new = []
+  #   # Removing the rationale from the original sentence while preserving punctuation and apostrophes
+  #   sentence_new = []
 
-    for word in words:
-        if re.match(r'\w+', word):
-            if word not in rationale:
-                sentence_new.append(word)
-        else:
-            sentence_new.append(word)
+  #   for word in words:
+  #       if re.match(r'\w+', word):
+  #           if word not in rationale:
+  #               sentence_new.append(word)
+  #       else:
+  #           sentence_new.append(word)
 
 
-    # Join the words to form the new sentence
-    sentence_new = ' '.join(sentence_new).replace(' ,', ',').replace(' .', '.').replace(' ?', '?').replace(' !', '!').replace(' ;', ';').replace(" '", "'").replace(' :', ':')
+  #   # Join the words to form the new sentence
+  #   sentence_new = ' '.join(sentence_new).replace(' ,', ',').replace(' .', '.').replace(' ?', '?').replace(' !', '!').replace(' ;', ';').replace(" '", "'").replace(' :', ':')
 
-    print(sentence_new)
+  #   print(sentence_new)
 
 
   # def lime_tokenize(self, sentence, split_expression=r'\W+'):
@@ -277,18 +277,18 @@ class Explainer:
     
   #   return explanation_list
   
-  def format_explanation_true_list(self, explanation_true_list):
+  # def format_explanation_true_list(self, explanation_true_list):
 
-    # spliting words with apostrophe ('wasn't' -> 'wasn', 't')
-    explanation_true_list = [[word for item in explanation for word in item.replace("'", " ").split()] for explanation in explanation_true_list]
+  #   # spliting words with apostrophe ('wasn't' -> 'wasn', 't')
+  #   explanation_true_list = [[word for item in explanation for word in item.replace("'", " ").split()] for explanation in explanation_true_list]
 
-    # Now split the words by spaces and remove punctuation ('kissing?' -> 'kissing')
-    translator = str.maketrans('', '', string.punctuation)
+  #   # Now split the words by spaces and remove punctuation ('kissing?' -> 'kissing')
+  #   translator = str.maketrans('', '', string.punctuation)
         
-    # Use a list comprehension to remove punctuation from each word in each list.
-    explanation_true_list = [[word.translate(translator) for word in word_list] for word_list in explanation_true_list]
+  #   # Use a list comprehension to remove punctuation from each word in each list.
+  #   explanation_true_list = [[word.translate(translator) for word in word_list] for word_list in explanation_true_list]
 
-    return explanation_true_list
+  #   return explanation_true_list
   
   # def compute_token_f1(self, explanation_true, explanation_pred):
   #   true_set = set(explanation_true)

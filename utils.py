@@ -186,6 +186,7 @@ def make_test_set_cose(size, seed=42, remove_bad_explanations=False): # 1221 max
       'true_labels': true_labels,
       'extractive_explanation': [test_set['extractive_explanation'][i].split() for i in range(size)],
       'candidate_labels_list': candidate_labels_list,
+      'random_indices': random_indices,
   }
 
 def make_test_set_mnli(size, seed=42): # 9815 max size for mnli
@@ -203,7 +204,8 @@ def make_test_set_mnli(size, seed=42): # 9815 max size for mnli
   return {
       'sentence_pairs': test_set, 
       'test_labels': test_labels, 
-      'test_labels_text': test_labels_text
+      'test_labels_text': test_labels_text,
+      'random_indices': random_indices,
       }
 
 def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42, remove_bad_explanations=False): # 9842 max size for mnli
@@ -261,6 +263,7 @@ def make_test_set_esnli(size, path='data/esnli_dev.csv', seed=42, remove_bad_exp
       'sentence1_highlights': sentence1_highlights,
       'sentence2_highlights': sentence2_highlights,
       'extractive_explanation': extractive_explanations,
+      'random_indices': random_indices,
       }
 
 # old method to find mislabeld instances
