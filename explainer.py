@@ -5,11 +5,14 @@ import string
 from math import sqrt
 
 
-
 class Explainer:
   
   def __init__(self, class_names=None, random_state=42, kernel_width=25, split_expression=lambda x: x.split()):
-    # split_expression=r'\W+' orinially but we split by whitespace by default
+    """
+    Creates an LimeTextExplainer instance with the class names provided
+    If not class names are passed Zero Shot Classification setting is assumed
+    """
+    # For spliting by whitespace and punctuation use split_expression=r'\W+' orinially (we split by whitespace by default)
 
     self.class_names = class_names
     self.random_state = random_state
@@ -18,6 +21,17 @@ class Explainer:
     self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state, kernel_width=kernel_width, split_expression=split_expression)
 
   def compute_explanations(self, sentences, model, num_samples=100, num_features=None, task=None, class_names_list=None):
+    """
+    Computes LIME explanation
+    :param sentences: list of sentences (tuple pairs for NLI) to be explained
+    :param model: the model used for prediction. Has to implement a predict() method
+    :param num_samples: number of perturbed samples to approximate local surrogate model
+    :param num_features: number of token to be classified. Per default input token count
+    :param task: should be 'NLI' for natural language inference and 'ZSC' for zero shot classification. Can be extended
+    :param class_names_list: in case of ZSC requires list of candidate labels accoring to the sentences 
+    :return: list of LIME Explanation objects
+    """
+
     explanations = []
 
     # NLI sentences are pairs of premises and hypotheses
@@ -56,46 +70,35 @@ class Explainer:
 
     return explanations
 
-  # def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
-
-  #   explanations = []
-
-  #   # NLI sentences are pairs of premises and hypotheses
-  #   if task == 'NLI':
-  #     sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
-  #     top_labels=3
-
-  #   for i, sentence in enumerate(sentences):
-
-  #     # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
-  #     if class_names_list is not None:
-  #       self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
-  #       top_labels= len(class_names_list[i])
-
-  #     # if no specific number is given then set num_feature to the number of tokens
-  #     if num_features is None:
-  #       num_features_temp = len(sentence.split())
-  #     else:
-  #       num_features_temp = num_features
-
-  #     explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
-  #     explanations.append(explanation)
-
-  #   return explanations
-
   def show_lime(self, explanations, show_all_labels=False):
+    """
+    illustrates LIME explanations. Takes a list of LIME Explanation objects. 
+    If show_all_labels=False only displys with respect to thr predicted class
+    """
     
     for explanation in explanations:
       if show_all_labels:
         label = None
       else:
-        label = [explanation.top_labels[0]]
+        label = [explanation.top_labels[0]] # predicted label
       
       explanation.show_in_notebook(text=True, labels=label)
       print('-'*100)
 
 
   def comprehensiveness(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI', candidate_labels=None):
+    """
+    Computes comprehensiveness metric
+    :param explanation: LIME explanation to be evaluated
+    :param sentence: original input sentence (or sentence pair for NLI)
+    :param predict: model predict() method
+    :param top_k: calculates comprehensiveness w.r.t. the top k most important tokens
+    :param top_percent: calculates comprehensiveness w.r.t top_percent most important tokens
+    :param verbose: print computation step for comprhensiveness
+    :param task: should be 'NLI' for natrual language inference or 'ZSC' for zero shot classification
+    :param candidate_labels: for ZSC setting
+    :return: float number representing the metric
+    """
       
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
@@ -147,6 +150,18 @@ class Explainer:
 
 
   def sufficiency(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI', candidate_labels=None):
+    """
+    Computes sufficiency metric
+    :param explanation: LIME explanation to be evaluated
+    :param sentence: original input sentence (or sentence pair for NLI)
+    :param predict: model predict() method
+    :param top_k: calculates sufficiency w.r.t. the top k most important tokens
+    :param top_percent: calculates sufficiency w.r.t top_percent most important tokens
+    :param verbose: print computation step for comprhensiveness
+    :param task: should be 'NLI' for natrual language inference or 'ZSC' for zero shot classification
+    :param candidate_labels: for ZSC setting
+    :return: float number representing the metric
+    """
 
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
@@ -195,6 +210,18 @@ class Explainer:
     return sufficiency
 
   def aggregated_metric(self, metric, explanation, sentence, predict, bins=[0.1, 0.3, 0.5], verbose=False, task='NLI', candidate_labels=None):
+    """
+    calculates aggregrated comprehensiveness or sufficiency based on the provided bins. Similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/explanation_tokens_benchmark/metrics.py 
+    :param explanation: LIME explanation to be evaluated
+    :param sentence: original input sentence (or sentence pair for NLI)
+    :param predict: model predict() method
+    :param top_k: calculates sufficiency w.r.t. the top k most important tokens
+    :param top_percent: calculates sufficiency w.r.t top_percent most important tokens
+    :param verbose: print computation step for comprhensiveness
+    :param task: should be 'NLI' for natrual language inference or 'ZSC' for zero shot classification
+    :param candidate_labels: for ZSC setting
+    :return: float number representing the metric
+    """
 
     if metric not in ['comprehensiveness', 'sufficiency']:
       raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
@@ -218,6 +245,9 @@ class Explainer:
 
   # returns explanation tokens for a single explanation instance
   def get_explanation_tokens(self, explanation, top_k=None, top_percent=None):
+    """
+    helper function to get the most important tokens
+    """
     expl_list = explanation.as_list(label= explanation.top_labels[0])
     expl_list_sorted = sorted(expl_list, key=lambda x: x[1], reverse=True) # sorting in descending order
 
@@ -233,101 +263,32 @@ class Explainer:
     return explanation_tokens
 
   def get_explanation_list(self, explanations, top_k=None, top_percent=None):
+    """
+    helper function to get the most important tokens for list of explanations
+    """
     return [self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) for explanation in explanations]
-  
-
-  # # If LIME was initialised with split_expression=r'\W+' instead of lambda x: x.split() then use this method to remove tokens
-  # def remove_explanation_tokens_from_sentence(sentence, explanation_tokens): 
-  #   # Split the sentence into words using regex
-  #   words = re.findall(r'\w+|[.,!?;]|\'\w+', old)
-
-  #   # Removing the rationale from the original sentence while preserving punctuation and apostrophes
-  #   sentence_new = []
-
-  #   for word in words:
-  #       if re.match(r'\w+', word):
-  #           if word not in rationale:
-  #               sentence_new.append(word)
-  #       else:
-  #           sentence_new.append(word)
 
 
-  #   # Join the words to form the new sentence
-  #   sentence_new = ' '.join(sentence_new).replace(' ,', ',').replace(' .', '.').replace(' ?', '?').replace(' !', '!').replace(' ;', ';').replace(" '", "'").replace(' :', ':')
-
-  #   print(sentence_new)
-
-
-  # def lime_tokenize(self, sentence, split_expression=r'\W+'):
-  #   """
-  #   Tokenizes the sentence based on the provided split_expression same as LIME documentation (splits on non-word characters).
-  #   """
-  #   # Using the split_expression as a non-capturing group
-  #   splitter = re.compile(r'(%s)|$' % split_expression)
-  #   return [s for s in splitter.split(sentence) if s]
-  
-  # def get_explanation_list(self, explanations, top_percent):
+  def compute_macro_iou(self, explanation_tokens, ground_truths, threshold=0.5):
+    """
+    Computes marco average of intersection over union scores for each pair of explanations (LIME vs. human)
     
-  #   explanation_list = []
+    :param explanation_tokens: List of generated explanations (lists of tokens).
+    :param ground_truths: List of ground truth explanations (lists of tokens).
     
-  #   for explanation in explanations:
-  #       expl_list = [explanation.as_list(label= explanation.top_labels[0])[i][0].lower() for i in range(len(explanation.as_list()))]
-  #       threshold = int(np.ceil(len(expl_list) * top_percent))
-  #       explanation_list.append(expl_list[:threshold])
+    :return: mean IOU
+    """
+    # Check if lists are of the same length
+    assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
     
-  #   return explanation_list
-  
-  # def format_explanation_true_list(self, explanation_true_list):
-
-  #   # spliting words with apostrophe ('wasn't' -> 'wasn', 't')
-  #   explanation_true_list = [[word for item in explanation for word in item.replace("'", " ").split()] for explanation in explanation_true_list]
-
-  #   # Now split the words by spaces and remove punctuation ('kissing?' -> 'kissing')
-  #   translator = str.maketrans('', '', string.punctuation)
-        
-  #   # Use a list comprehension to remove punctuation from each word in each list.
-  #   explanation_true_list = [[word.translate(translator) for word in word_list] for word_list in explanation_true_list]
-
-  #   return explanation_true_list
-  
-  # def compute_token_f1(self, explanation_true, explanation_pred):
-  #   true_set = set(explanation_true)
-  #   pred_set = set(explanation_pred)
-
-  #   # Calculate precision and recall
-  #   precision = len(true_set & pred_set) / len(pred_set) if pred_set else 0
-  #   recall = len(true_set & pred_set) / len(true_set) if true_set else 0
-
-  #   # Calculate F1 score
-  #   f1 = 2 * (precision * recall) / (precision + recall) if (precision + recall) > 0 else 0
-
-  #   return f1
-
-
-  def compute_macro_iou(self, explanation_tokenss, ground_truths, threshold=0.5):
-      """
-      Computes IoU values for each pair of explanations from two lists and checks if they exceed a threshold.
-      
-      Args:
-      - explanation_tokenss: List of explanations (lists of tokens).
-      - ground_truths: List of explanations (lists of tokens).
-      - threshold: IoU threshold to consider a match.
-      
-      Returns:
-      - average of List of fractions indiction the IOU for each instance
-      """
-      # Check if lists are of the same length
-      if len(explanation_tokenss) != len(ground_truths):
-          raise ValueError("Both lists should be of the same length.")
-      
-      iou_scores = [self.compute_instance_iou(explanation_tokens, ground_truth) for explanation_tokens, ground_truth in zip(explanation_tokenss, ground_truths)]
-      return np.mean(iou_scores)
+    iou_scores = [self.compute_instance_iou(explanation_tokens, ground_truth) for explanation_tokens, ground_truth in zip(explanation_tokenss, ground_truths)]
+    return np.mean(iou_scores)
 
 
   def compute_instance_iou(self ,explanation_tokens, ground_truth):
-    """Helper function to compute IoU for two explanations."""
-    #set_explanation_tokens = set(explanation_tokens)
-    #set_ground_truth = set(ground_truth)
+    """
+    IOU for single instance
+    """
     # Remove punctuation and convert to sets
     set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
     set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
@@ -336,123 +297,38 @@ class Explainer:
     return intersection / union if union != 0 else 0
 
 
-  # similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/explanation_tokens_benchmark/metrics.py 
   def compute_instance_f1(self, explanation_tokens, ground_truth):
-      """
-      Computes the instance F1 score for two given lists of tokens.
-      """
-      #set_explanation_tokens = set(explanation_tokens)
-      #set_ground_truth = set(ground_truth)
+    """
+    TokenF1 for single instance
+    """
 
-      # Remove punctuation and convert to sets
-      set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
-      set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
-      
-      tp = len(set_explanation_tokens.intersection(set_ground_truth))
-      fp = len(set_explanation_tokens.difference(set_ground_truth))
-      fn = len(set_ground_truth.difference(set_explanation_tokens))
-      
-      precision = tp / (tp + fp) if (tp + fp) != 0 else 0
-      recall = tp / (tp + fn) if (tp + fn) != 0 else 0
-      f1 = 2 * precision * recall / (precision + recall) if (precision + recall) != 0 else 0
-      
-      return f1
+    # Remove punctuation and convert to sets
+    set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
+    set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
+    
+    tp = len(set_explanation_tokens.intersection(set_ground_truth))
+    fp = len(set_explanation_tokens.difference(set_ground_truth))
+    fn = len(set_ground_truth.difference(set_explanation_tokens))
+    
+    precision = tp / (tp + fp) if (tp + fp) != 0 else 0
+    recall = tp / (tp + fn) if (tp + fn) != 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) != 0 else 0
+    
+    return f1
 
   def compute_macro_f1(self, explanation_tokenss, ground_truths):
-      """
-      Computes the macro F1 score for two given lists of lists of tokens.
-      """
-      assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
-      
-      f1_scores = [self.compute_instance_f1(r, gt) for r, gt in zip(explanation_tokenss, ground_truths)]
-      
-      macro_f1 = sum(f1_scores) / len(f1_scores)
-      
-      return macro_f1
-
-
-
-
-  #a = ['hello', 'world', 'I', 'am', 'bored']
-  #b = ['hello', 'you', 'I', 'am', 'bored', 'can']
-
-  #print(cosine_similarity(a, b))
-
-
-
-
-
-
-
-  #Old version
-  # def compute_explanations2(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
-
-  #   explanations = []
-
-  #   # NLI sentences are pairs of premises and hypotheses
-  #   if task == 'NLI':
-  #     sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
-  #     top_labels=3
-
-  #   for i, sentence in enumerate(sentences):
-
-  #     # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
-  #     if class_names_list is not None:
-  #       self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
-  #       top_labels= len(class_names_list[i])
-
-  #     # if no specific number is given then set num_feature to the number of tokens
-  #     if num_features is None:
-  #       num_features_temp = len(sentence.split())
-  #     else:
-  #       num_features_temp = num_features
-
-  #     explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
-  #     explanations.append(explanation)
-
-  #   return explanations
-
-# class Explainer2:
-
-#   def __init__(self, class_names=None, random_state=42):
-#     self.class_names = class_names
-#     self.random_state = random_state
-#     self.explainer = LimeTextExplainer(class_names=class_names, random_state=random_state)
-
-#   def compute_explanations(self, sentences, predict, num_samples=100, num_features=None, task=None, class_names_list=None):
-
-#     explanations = []
-
-#     # NLI sentences are pairs of premises and hypotheses
-#     if task == 'NLI':
-#       sentences = [sentence[0] + " [SEP] " + sentence[1] for sentence in sentences]
-#       top_labels=3
-
-#     for i, sentence in enumerate(sentences):
-
-#       # for e-cos dataset, labels change for each sentence. class_names_list parameter should contain the list aof labels for each sentence
-#       if class_names_list is not None:
-#         self.explainer = LimeTextExplainer(class_names=class_names_list[i], random_state=self.random_state)
-#         top_labels= len(class_names_list[i])
-
-#       # if no specific number is given then set num_feature to the number of tokens
-#       if num_features is None:
-#         num_features_temp = len(sentence.split())
-#       else:
-#         num_features_temp = num_features
-
-#       explanation = self.explainer.explain_instance(sentence, predict, num_samples=num_samples, num_features=num_features_temp, top_labels=top_labels)
-#       explanations.append(explanation)
-
-#     return explanations
-
-#   def show_lime(self, explanations, show_all_labels=False):
+    """
+    Computes marco average of token level f1 scores for each pair of explanations (LIME vs. human)
     
-#     for explanation in explanations:
-#       if show_all_labels:
-#         label = None
-#       else:
-#         label = [explanation.top_labels[0]]
-
-#       explanation.show_in_notebook(text=True, labels=label)
-#       print('-'*100)
+    :param explanation_tokens: List of generated explanations (lists of tokens).
+    :param ground_truths: List of ground truth explanations (lists of tokens).
+    
+    :return: mean TokenF1
+    """
+    assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
+    
+    f1_scores = [self.compute_instance_f1(r, gt) for r, gt in zip(explanation_tokenss, ground_truths)]
+    
+    macro_f1 = sum(f1_scores) / len(f1_scores)
+    
+    return macro_f1

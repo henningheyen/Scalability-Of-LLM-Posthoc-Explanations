@@ -5,6 +5,9 @@ from torch.utils.data import DataLoader
 
 
 class ModelZSC:
+    """
+    A class for zero shot classification using HuggingFace's transformers.
+    """    
     def __init__(self, model_name, candidate_labels=None):
         """
         Initialises Zero Shot Classification model. model_name can be an NLI fine tuned model from Huggingface library. 
@@ -63,6 +66,9 @@ class ModelZSC:
 
 
 class ModelNLI: 
+    """
+    A class for natural language inference using HuggingFace's transformers.
+    """
     def __init__(self, model_name):
         """
         Initialises Natural Language Inference model. model_name can be an NLI fine tuned model from Huggingface library. 
