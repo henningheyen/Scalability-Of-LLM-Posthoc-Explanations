@@ -1,0 +1,13 @@
+Dataset,Model Size,Correct,Incorrect
+mnli,xsmall,85,15
+mnli,small,85,15
+mnli,base,90,10
+mnli,large,91,9
+esnli,xsmall,92,8
+esnli,small,92,8
+esnli,base,95,5
+esnli,large,93,7
+cose,xsmall,39,61
+cose,small,34,66
+cose,base,39,61
+cose,large,37,63

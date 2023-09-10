@@ -1,0 +1,13 @@
+Dataset,Model Size,Label,IoU,TokenF1
+e-SNLI,xsmall,Contradiction,0.289 (+- 0.031),0.418 (+- 0.039)
+e-SNLI,xsmall,Entailment,0.315 (+- 0.025),0.463 (+- 0.028)
+e-SNLI,xsmall,Neutral,0.244 (+- 0.028),0.363 (+- 0.037)
+e-SNLI,small,Contradiction,0.286 (+- 0.029),0.422 (+- 0.033)
+e-SNLI,small,Entailment,0.249 (+- 0.025),0.378 (+- 0.033)
+e-SNLI,small,Neutral,0.242 (+- 0.030),0.357 (+- 0.038)
+e-SNLI,base,Contradiction,0.264 (+- 0.027),0.395 (+- 0.033)
+e-SNLI,base,Entailment,0.291 (+- 0.025),0.433 (+- 0.030)
+e-SNLI,base,Neutral,0.211 (+- 0.028),0.319 (+- 0.037)
+e-SNLI,large,Contradiction,0.259 (+- 0.024),0.391 (+- 0.032)
+e-SNLI,large,Entailment,0.292 (+- 0.026),0.434 (+- 0.029)
+e-SNLI,large,Neutral,0.220 (+- 0.036),0.317 (+- 0.044)
