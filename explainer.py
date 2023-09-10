@@ -47,7 +47,7 @@ class Explainer:
     
       explanation = self.explainer.explain_instance(
          sentence, 
-         lambda x: model.predict(x, candidate_labels_list=class_names_list_temp), # [class_names_list_temp[i]]*num_samples will be ignored for ZeroShotNLI objects
+         lambda x: model.predict(x, candidate_labels_list=class_names_list_temp), # [class_names_list_temp[i]]*num_samples will be ignored for ModelNLI objects
          num_samples=num_samples, 
          num_features=num_features_temp, 
          top_labels=top_labels
