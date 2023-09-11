@@ -39,9 +39,7 @@ We use LIME explanations and DeBERTaV3 models of four different sizes from Huggi
 
 To set up the environment to run the experiments, install the required packages using:
 
-```bash
-pip install -r requirements.txt
-```
+`pip install -r requirements.txt`
 
 ## Extending the Repository
 
