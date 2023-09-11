@@ -1,6 +1,8 @@
 # Transformers Explainability
 
-This repository contains the code and experiments related to my Master Thesis in "Explainability in Transformer-Based Pre-Trained Language Model". The code conducts experiments on how explainability is affected by model size. We LIME explanations and DeBERTaV3 model of four different sizes from Huggingface. The project investigates natural language inference (NLI) and zero shot classification (ZSC). We use three datasets (MNLI, e-SNLI and CoS-e). The explanations are evaluated based on their faithfulness and plausibility. Faithfulness is measured by comprehensiveness and sufficiency and plausiblity is measured by intersection over union (IOU) and token level f1 scores (TokenF1). 
+This repository contains the code and experiments related to my Master Thesis "Explainability in Transformer-Based Pre-Trained Language Model". The code conducts experiments on how explainability is affected by model size. 
+
+We use LIME explanations and DeBERTaV3 models of four different sizes from Huggingface. The project investigates natural language inference (NLI) and zero shot classification (ZSC). We use three datasets (MNLI, e-SNLI and CoS-e). The explanations are evaluated based on their faithfulness and plausibility. While faithfulness aims to capture the extend to which the explanation reflects the model's internal decision process, plausibility captures the agreement between the generated explanation and a human ground truth explanation. Faithfulness is measured by comprehensiveness and sufficiency and plausibility is measured by intersection over union (IOU) and token level f1 scores (TokenF1). 
 
 ## Table of Contents
 
