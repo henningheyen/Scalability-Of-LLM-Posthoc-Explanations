@@ -22,7 +22,7 @@ This repository contains the code and experiments related to my Master Thesis in
   - `model.py`: Contains the `ModelZSC` and `ModelNLI` classes for zero-shot classification and natural language inference models respectively.
   - `utils.py`: Contains data loader functions for MNLI, e-SNLI and CoS-e
  
-- **Results"":
+- **Results**:
   - `json`: folder that contains JSON formatted results regarding model performance and LIME explanations (to avoid running intense computations again)
   - `figures`: folder that contains main plots associated with the results of this project
   - `tables`: folder with CSV formatted tables containing the results in numbers.    
