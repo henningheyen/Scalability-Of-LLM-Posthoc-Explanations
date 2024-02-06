@@ -1,7 +1,6 @@
-from transformers import pipeline, GPT2Tokenizer, GPT2LMHeadModel, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
 import torch
 import numpy as np
-from torch.utils.data import DataLoader
 
 
 class ModelZSC:

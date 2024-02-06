@@ -1,8 +1,6 @@
 from lime.lime_text import LimeTextExplainer
 import numpy as np
-import re
 import string
-from math import sqrt
 
 
 class Explainer:
@@ -149,82 +147,22 @@ class Explainer:
     return comprehensiveness
 
 
-  def sufficiency(self, explanation, sentence, predict, top_k=None, top_percent=None, verbose=True, task='NLI', candidate_labels=None):
-    """
-    Computes sufficiency metric
-    :param explanation: LIME explanation to be evaluated
-    :param sentence: original input sentence (or sentence pair for NLI)
-    :param predict: model predict() method
-    :param top_k: calculates sufficiency w.r.t. the top k most important tokens
-    :param top_percent: calculates sufficiency w.r.t top_percent most important tokens
-    :param verbose: print computation step for comprhensiveness
-    :param task: should be 'NLI' for natrual language inference or 'ZSC' for zero shot classification
-    :param candidate_labels: for ZSC setting
-    :return: float number representing the metric
-    """
-
-    if task not in ['NLI', 'ZSC']:
-      raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
-
-    # explanation_tokens is the top_k tokens 
-    explanation_tokens = self.get_explanation_tokens(explanation, top_k=top_k, top_percent=top_percent) 
-
-    # Forming new_sentence from explanation_tokens while retaining order from old_sentence
-    if task == 'NLI': # Natural Language Inference
-      tokens = (sentence[0] + " [SEP] " + sentence[1]).split()
-    elif task == 'ZSC': # Zero Shot Classification
-      if candidate_labels==None:
-          raise TypeError("provide candidate_labels in ZSC setting")
-      tokens = sentence.split()
-    
-    sentence_new = ' '.join(token for token in tokens if token in explanation_tokens or token == "[SEP]")
-
-    # Computing new probability for predicted class
-    predicted_class_index = np.argmax(explanation.predict_proba) # predicted class 0: 'contradiction', 1: 'entailment', 2: 'neutral'
-    if task == 'NLI':
-      prediction_new = predict([sentence_new])[0]
-      predicted_label_old = self.explainer.class_names[explanation.top_labels[0]]
-      predicted_label_new = self.explainer.class_names[np.argmax(prediction_new)]
-    elif task == 'ZSC':
-      prediction_new = predict([sentence_new], candidate_labels_list=[candidate_labels])[0]
-      predicted_label_old = candidate_labels[explanation.top_labels[0]]
-      predicted_label_new = candidate_labels[np.argmax(prediction_new)]
-        
-    probability_new = prediction_new[predicted_class_index]
-
-    # Comparing predictions (with and without explanation_tokens)
-    probability_old = max(explanation.predict_proba) #for the predicted class
-
-    sufficiency = probability_old - probability_new
-
-    if verbose:
-        print('explanation_tokens: ', explanation_tokens)
-        print('sentence_old: ', sentence)    
-        print('sentence_new: ', sentence_new)    
-        print('probability_old: ', probability_old)
-        print('predicted_label_old: ', predicted_label_old)
-        print('probability_new: ', probability_new)    
-        print('predicted_label_new: ', predicted_label_new)
-        print('sufficiency: ', sufficiency, '\n')
-
-    return sufficiency
-
   def aggregated_metric(self, metric, explanation, sentence, predict, bins=[0.1, 0.3, 0.5], verbose=False, task='NLI', candidate_labels=None):
     """
-    calculates aggregrated comprehensiveness or sufficiency based on the provided bins. Similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/explanation_tokens_benchmark/metrics.py 
+    calculates aggregrated comprehensiveness based on the provided bins. Similar to ERASER repo: https://github.com/jayded/eraserbenchmark/blob/master/explanation_tokens_benchmark/metrics.py 
     :param explanation: LIME explanation to be evaluated
     :param sentence: original input sentence (or sentence pair for NLI)
     :param predict: model predict() method
-    :param top_k: calculates sufficiency w.r.t. the top k most important tokens
-    :param top_percent: calculates sufficiency w.r.t top_percent most important tokens
+    :param top_k: calculates comprehensiveness w.r.t. the top k most important tokens
+    :param top_percent: calculates comprehensiveness w.r.t top_percent most important tokens
     :param verbose: print computation step for comprhensiveness
     :param task: should be 'NLI' for natrual language inference or 'ZSC' for zero shot classification
     :param candidate_labels: for ZSC setting
     :return: float number representing the metric
     """
 
-    if metric not in ['comprehensiveness', 'sufficiency']:
-      raise TypeError("The 'metric' parameter must either 'comprehensiveness' or 'sufficiency'")
+    if metric not in ['comprehensiveness']: # can be extended by more metrics
+      raise TypeError("The 'metric' parameter must either 'comprehensiveness'")
 
     if task not in ['NLI', 'ZSC']:
       raise TypeError("Use 'NLI or 'ZSC' for task parameter or extend this method")
@@ -235,12 +173,8 @@ class Explainer:
     aggregate = []
 
     for top_percent in bins:
-      if metric == 'comprehensiveness':
-        comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=candidate_labels)
-        aggregate.append(comp)    
-      else:
-        suff = self.sufficiency(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=candidate_labels)
-        aggregate.append(suff)    
+      comp = self.comprehensiveness(explanation, sentence, predict, top_percent=top_percent, verbose=verbose, task=task, candidate_labels=candidate_labels)
+      aggregate.append(comp)    
     return np.mean(aggregate)
 
   # returns explanation tokens for a single explanation instance
@@ -279,9 +213,9 @@ class Explainer:
     :return: mean IOU
     """
     # Check if lists are of the same length
-    assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
+    assert len(explanation_tokens) == len(ground_truths), "Both lists must have the same length."
     
-    iou_scores = [self.compute_instance_iou(explanation_tokens, ground_truth) for explanation_tokens, ground_truth in zip(explanation_tokenss, ground_truths)]
+    iou_scores = [self.compute_instance_iou(explanation_tokens, ground_truth) for explanation_tokens, ground_truth in zip(explanation_tokens, ground_truths)]
     return np.mean(iou_scores)
 
 
@@ -297,38 +231,3 @@ class Explainer:
     return intersection / union if union != 0 else 0
 
 
-  def compute_instance_f1(self, explanation_tokens, ground_truth):
-    """
-    TokenF1 for single instance
-    """
-
-    # Remove punctuation and convert to sets
-    set_ground_truth = set(word.translate(str.maketrans('', '', string.punctuation)) for word in ground_truth)
-    set_explanation_tokens = set(word.translate(str.maketrans('', '', string.punctuation)) for word in explanation_tokens)
-    
-    tp = len(set_explanation_tokens.intersection(set_ground_truth))
-    fp = len(set_explanation_tokens.difference(set_ground_truth))
-    fn = len(set_ground_truth.difference(set_explanation_tokens))
-    
-    precision = tp / (tp + fp) if (tp + fp) != 0 else 0
-    recall = tp / (tp + fn) if (tp + fn) != 0 else 0
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) != 0 else 0
-    
-    return f1
-
-  def compute_macro_f1(self, explanation_tokenss, ground_truths):
-    """
-    Computes marco average of token level f1 scores for each pair of explanations (LIME vs. human)
-    
-    :param explanation_tokens: List of generated explanations (lists of tokens).
-    :param ground_truths: List of ground truth explanations (lists of tokens).
-    
-    :return: mean TokenF1
-    """
-    assert len(explanation_tokenss) == len(ground_truths), "Both lists must have the same length."
-    
-    f1_scores = [self.compute_instance_f1(r, gt) for r, gt in zip(explanation_tokenss, ground_truths)]
-    
-    macro_f1 = sum(f1_scores) / len(f1_scores)
-    
-    return macro_f1
