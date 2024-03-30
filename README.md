@@ -1,8 +1,9 @@
-# Transformers Explainability
+# ICLR Submission
 
-This repository contains the code and experiments related to my Master Thesis "Explainability in Transformer-Based Pre-Trained Language Model". The code conducts experiments on how explainability is affected by model size. 
+This repository contains the code and experiments related to the paper "The Effect of Model Size on LLM Post-hoc Explainability via LIME". The paper was published in the ICLR 2024 workshop on Secure and Trustworthy Large Language Models ([SeT-LLM](https://set-llm.github.io)). 
 
-We use LIME explanations and DeBERTaV3 models of four different sizes from Huggingface. The project investigates natural language inference (NLI) and zero shot classification (ZSC). We use three datasets (MNLI, e-SNLI and CoS-e). The explanations are evaluated based on their faithfulness and plausibility. While faithfulness aims to capture the extend to which the explanation reflects the model's internal decision process, plausibility captures the agreement between the generated explanation and a human ground truth explanation. Faithfulness is measured by comprehensiveness and sufficiency and plausibility is measured by intersection over union (IOU) and token level f1 scores (TokenF1). 
+## Abstract
+Large language models (LLMs) are becoming bigger to boost performance. However, little is known about how explainability is affected by this trend. This work explores LIME explanations for DeBERTaV3 models of four different sizes on natural language inference (NLI) and zero-shot classification (ZSC) tasks. We evaluate the explanations based on their **faithfulness** to the models'  internal decision processes and their **plausibility**, i.e. their agreement with human explanations. Our results suggest some extent of misalignment between the LIME explanations and the models' internal processes as model size increases.  
 
 ## Table of Contents
 
@@ -51,7 +52,5 @@ The repository is designed with extensibility in mind. Here's how you can extend
 
 3. **Add Explainability Techniques**: The current state uses LIME in `explainer.py` script. can be extended to incorporate other explainability techniques. Create new classes or methods similar to the existing `Explainer` class to extend by other explainability techniques (e.g. SHAP, Anchors, Integrated Gradients).
 
-4. **Add explainability metrics**: The repository currently uses comprehensiveness and sufficiency (faithfulness) and IOU and TokenF1 (plausibility) as evaluation metrics. You can add more metrics by extending the evaluation notebooks or the `explainer.py` script.
+4. **Add explainability metrics**: The repository currently uses comprehensiveness (faithfulness) and IOU (plausibility) as evaluation metrics. You can add more metrics by extending the evaluation notebooks or the `explainer.py` script.
 
-
-A paper based on this research is being prepared for submission at the NeurIPS 2023 workshop for Socially Responsible Language Modelling Research (SoLaR). We add a reference to this repository once the paper has been reviewed. 
