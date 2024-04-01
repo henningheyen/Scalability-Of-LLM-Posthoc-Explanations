@@ -14,14 +14,14 @@ Large language models (LLMs) are becoming bigger to boost performance. However, 
 ## Repository Structure
 
 - **Notebooks**:
-  - `Colab_Model_Evaluation.ipynb`: Colab notebook to evaluate model performance of the validation sets.
-  - `Colab_Explainability_Evaluation.ipynb`: Colab notebook for calculating 100 LIME explanations for each dataset. 
-  - `explainability_local_evaluation.ipynb`: Applying explainability metrics on local instances.
-  - `explainability_global_evaluation_results.ipynb`: Applying the metrics across 100 explanations. 
-  
+  - `Colab_Model_Evaluation.ipynb`: Colab notebook to evaluate model performance.
+  - `Colab_Explainability_Evaluation.ipynb`: Colab notebook for calculating 100 LIME explanations for each dataset and evaluating the explanations based on comprehensiveness and IOU scores
+  - `explainability_local_evaluation.ipynb`: Applying explainability metrics on local instances to illustrate the explainability metrics for faithfulness (comprehensiveness) and plausibility (Intersection Over Union or IOU)
+  - `plots_tables_results.ipynb`: Visualizing results on performance, comprehensiveness and IOU
+  - `model_evaluation_tables.ipynb`: model performance summarized in tables
   
 - **Python Scripts**:
-  - `explainer.py`: Contains the `Explainer` class which is responsible for generating LIME explanations for the models.
+  - `explainer.py`: Contains the `Explainer` class which is responsible for generating LIME explanations for the models and evaluating their comprehensiveness and IOU. 
   - `model.py`: Contains the `ModelZSC` and `ModelNLI` classes for zero-shot classification and natural language inference models respectively.
   - `utils.py`: Contains data loader functions for MNLI, e-SNLI and CoS-e
  
