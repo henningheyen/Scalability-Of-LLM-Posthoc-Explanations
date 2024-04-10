@@ -1,9 +1,10 @@
-# ICLR Submission
+# Scalability Of LLM Posthoc-Explanations
 
 This repository contains the code and experiments related to the paper "The Effect of Model Size on LLM Post-hoc Explainability via LIME". The paper was published in the ICLR 2024 workshop on Secure and Trustworthy Large Language Models ([SeT-LLM](https://set-llm.github.io)). 
 
 ## Abstract
-Large language models (LLMs) are becoming bigger to boost performance. However, little is known about how explainability is affected by this trend. This work explores LIME explanations for DeBERTaV3 models of four different sizes on natural language inference (NLI) and zero-shot classification (ZSC) tasks. We evaluate the explanations based on their **faithfulness** to the models'  internal decision processes and their **plausibility**, i.e. their agreement with human explanations. Our results suggest some extent of misalignment between the LIME explanations and the models' internal processes as model size increases.  
+Large language models (LLMs) are becoming bigger to boost performance. However, little is known about how explainability is affected by this trend. This work explores LIME explanations for DeBERTaV3 models of four different sizes on natural language inference (NLI) and zero-shot classification (ZSC) tasks. We evaluate the explanations based on their **faithfulness** to the models’ internal decision processes and their **plausibility**, i.e. their agreement with human explanations. The key finding is that increased model size does not correlate with plausibility despite improved model performance, suggesting a misalignment between the LIME explanations and the models’ internal processes as model size increases. Our results further suggest limitations regarding the comprehensiveness metric for faithfulness in NLI contexts.
+  
 
 ## Table of Contents
 
