@@ -11,6 +11,7 @@ Large language models (LLMs) are becoming bigger to boost performance. However, 
 - [Repository Structure](#repository-structure)
 - [Setup](#setup)
 - [Extending the Repository](#extending-the-repository)
+- [Citation](#citation)
 
 ## Repository Structure
 
