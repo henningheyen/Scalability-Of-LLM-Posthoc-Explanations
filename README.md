@@ -55,3 +55,19 @@ The repository is designed with extensibility in mind. Here's how you can extend
 
 4. **Add explainability metrics**: The repository currently uses comprehensiveness (faithfulness) and IOU (plausibility) as evaluation metrics. You can add more metrics by extending the evaluation notebooks or the `explainer.py` script.
 
+# Citation
+
+Please cite as
+
+```
+@inproceedings{
+heyen2024the,
+title={The Effect of Model Size on {LLM} Post-hoc Explainability via {LIME}},
+author={Henning Heyen and Amy Widdicombe and Noah Yamamoto Siegel and Philip Colin Treleaven and Maria Perez-Ortiz},
+booktitle={ICLR 2024 Workshop on Secure and Trustworthy Large Language Models},
+year={2024},
+url={https://openreview.net/forum?id=D1dN1AdHOy}
+}
+```
+
+
